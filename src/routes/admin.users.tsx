@@ -40,7 +40,7 @@ type Draft = { name: string; email: string; password: string; role: Role; status
 const emptyDraft: Draft = { name: "", email: "", password: "", role: "student", status: "active" };
 
 function UserManagement() {
-  const { users, addUser, updateUser, deleteUser } = useData();
+  const { users, courses, assessments, submissions, certificates, progress, addUser, updateUser, deleteUser } = useData();
   const [query, setQuery] = useState("");
   const [roleTab, setRoleTab] = useState<"all" | Role>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
