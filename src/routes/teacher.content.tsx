@@ -48,20 +48,25 @@ const fileSizeLabel = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(bytes 
 function ContentBuilder() {
   const { user } = useAuth();
   const {
-    courses, assessments, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem,
+    courses, assessments, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem, updateAssessment,
   } = useData();
 
   const myCourses = useMemo(
     () => courses.filter((c) => !user || user.role !== "teacher" || c.teacherId === user.id),
     [courses, user],
   );
+  const myCourseIds = useMemo(() => new Set(myCourses.map((c) => c.id)), [myCourses]);
   const [courseId, setCourseId] = useState<string>("");
   useEffect(() => {
     if (!courseId && myCourses[0]) setCourseId(myCourses[0].id);
   }, [myCourses, courseId]);
 
   const course = courses.find((c) => c.id === courseId);
-  const courseAssessments = useMemo(() => assessments.filter((a) => a.courseId === courseId), [assessments, courseId]);
+  // Show ALL of the teacher's assessments so they can attach any of them; saving will rebind courseId if needed.
+  const pickableAssessments = useMemo(
+    () => assessments.filter((a) => myCourseIds.has(a.courseId)),
+    [assessments, myCourseIds],
+  );
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   // section dialog
