@@ -61,6 +61,7 @@ function ContentBuilder() {
   }, [myCourses, courseId]);
 
   const course = courses.find((c) => c.id === courseId);
+  const courseAssessments = useMemo(() => assessments.filter((a) => a.courseId === courseId), [assessments, courseId]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   // section dialog
@@ -100,6 +101,7 @@ function ContentBuilder() {
   const saveItem = () => {
     if (!itemDraft.title.trim()) { toast.error("Title is required."); return; }
     if (!course) return;
+    if (itemDraft.type === "assessment" && !itemDraft.assessmentId) { toast.error("Choose an assessment."); return; }
     const payload: Omit<ContentItem, "id"> = {
       type: itemDraft.type,
       title: itemDraft.title.trim(),
