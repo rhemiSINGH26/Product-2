@@ -2,38 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User, Role } from "./mock-data";
 import { useData } from "./data-store";
+import { HARDCODED_ACCOUNTS } from "./accounts";
 
-export const HARDCODED_ACCOUNTS: Array<User & { password: string }> = [
-  {
-    id: "admin-root",
-    name: "Administrator",
-    email: "admin@itech.com",
-    password: "admin123",
-    role: "admin",
-    status: "active",
-    joinedAt: "2025-01-01",
-  },
-  {
-    id: "teacher-root",
-    name: "Instructor",
-    email: "teacher@itech.com",
-    password: "teacher123",
-    role: "teacher",
-    status: "active",
-    joinedAt: "2025-01-01",
-    courseIds: [],
-  },
-  {
-    id: "student-root",
-    name: "Learner",
-    email: "student@itech.com",
-    password: "student123",
-    role: "student",
-    status: "active",
-    joinedAt: "2025-01-01",
-    courseIds: [],
-  },
-];
+export { HARDCODED_ACCOUNTS };
 
 interface AuthState {
   user: User | null;
