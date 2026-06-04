@@ -199,6 +199,7 @@ function QuizPage() {
             <div className="text-xs text-muted-foreground">Question {i + 1} of {a.questions.length} · {q.points} pts</div>
           </div>
           <div className="font-medium">{q.prompt}</div>
+          {q.imageUrl && <img src={q.imageUrl} alt={`Question ${i + 1} reference`} className="max-h-80 w-full rounded-xl border border-border object-contain bg-secondary/30" />}
 
           {q.type === "mcq" && (
             <RadioGroup value={answers[q.id] ?? ""} onValueChange={(v) => setAnswers((p) => ({ ...p, [q.id]: v }))}>
