@@ -43,7 +43,7 @@ let counter = 0;
 const uid = (p: string) => `${p}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
 // Seed users = only the 3 hardcoded login accounts (stripped of password)
-const seedUsers: User[] = HARDCODED_ACCOUNTS.map(({ password: _p, ...u }) => u);
+const seedUsers: User[] = (HARDCODED_ACCOUNTS ?? []).map(({ password: _p, ...u }) => u);
 
 // Seed one demo course so the student can immediately open something
 const seedCourses: Course[] = [
@@ -155,6 +155,25 @@ const initial = {
   messages: [] as Message[],
   progress: {} as Record<string, string[]>,
 };
+
+function ensureSeedCourses(courses: unknown): Course[] {
+  const list = Array.isArray(courses) ? (courses as Course[]) : [];
+  return seedCourses.reduce<Course[]>((acc, seed) => {
+    const existing = acc.find((c) => c.id === seed.id);
+    if (!existing) return [seed, ...acc];
+    return acc.map((c) => {
+      if (c.id !== seed.id) return c;
+      return {
+        ...seed,
+        ...c,
+        studentIds: Array.from(new Set([...(seed.studentIds ?? []), ...((c.studentIds ?? []) as string[])])),
+        sections: Array.isArray(c.sections) && c.sections.length > 0 ? c.sections : seed.sections,
+        accessMode: c.accessMode ?? seed.accessMode,
+        status: c.status ?? seed.status,
+      };
+    });
+  }, list);
+}
 
 const syncQuestionCount = (a: StoreAssessment): StoreAssessment => ({ ...a, questionCount: a.questions.length });
 
