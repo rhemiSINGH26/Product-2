@@ -318,7 +318,7 @@ export const useData = create<DataState>()(
           ),
         })),
 
-      submitQuiz: (assessmentId, studentId, answers) => {
+      submitQuiz: (assessmentId, studentId, answers, proctorEvents) => {
         const a = get().assessments.find((x) => x.id === assessmentId);
         if (!a) return "";
         const responses: SubmissionResponse[] = a.questions.map((q) => {
@@ -339,6 +339,7 @@ export const useData = create<DataState>()(
           submittedAt: new Date().toISOString().slice(0, 10),
           responses,
           status: needsGrading ? "submitted" : "graded",
+          proctorEvents,
         };
         set((s) => ({ submissions: [sub, ...s.submissions] }));
 
@@ -354,7 +355,7 @@ export const useData = create<DataState>()(
           const pct = max ? Math.round((earned / max) * 100) : 0;
           get().notify(studentId, "Quiz auto-graded", `${a.title}: ${pct}% (${earned}/${max}).`);
           // Final exam: auto-request a certificate for admin verification
-          if (pct >= a.passingScore && a.isFinal) maybeRequestCert(get, studentId, a.courseId, pct);
+          if (pct >= a.passingScore && a.isFinal) maybeRequestCert(get, studentId, a.courseId, pct, proctorEvents);
         }
         return id;
       },
