@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/store";
-import { useData, courseProgressPct, isCourseExpired } from "@/lib/data-store";
+import { useData, courseProgressPct, isCourseExpired, studentAccessFor } from "@/lib/data-store";
 
 export const Route = createFileRoute("/student/courses")({ component: StudentCourses });
 
