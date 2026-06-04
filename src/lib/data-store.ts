@@ -29,6 +29,8 @@ export interface SubmissionResponse {
   awarded: number | null;
 }
 
+export interface ProctorEventRecord { at: string; type: string; detail?: string; }
+
 export interface Submission {
   id: string;
   assessmentId: string;
@@ -37,6 +39,7 @@ export interface Submission {
   responses: SubmissionResponse[];
   status: "submitted" | "graded";
   feedback?: string;
+  proctorEvents?: ProctorEventRecord[];
 }
 
 let counter = 0;
