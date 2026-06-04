@@ -498,6 +498,14 @@ export const useData = create<DataState>()(
       version: 4,
       migrate: (persisted: any, version: number) => {
         if (!persisted) return persisted;
+        persisted.users = Array.isArray(persisted.users) ? persisted.users : seedUsers;
+        persisted.courses = ensureSeedCourses(persisted.courses);
+        persisted.assessments = Array.isArray(persisted.assessments) ? persisted.assessments : [];
+        persisted.submissions = Array.isArray(persisted.submissions) ? persisted.submissions : [];
+        persisted.certificates = Array.isArray(persisted.certificates) ? persisted.certificates : [];
+        persisted.notifications = Array.isArray(persisted.notifications) ? persisted.notifications : [];
+        persisted.messages = Array.isArray(persisted.messages) ? persisted.messages : [];
+        persisted.progress = persisted.progress && typeof persisted.progress === "object" ? persisted.progress : {};
         if (version < 3) {
           persisted.courses = (persisted.courses ?? []).map((c: any) => ({
             ...c,
@@ -510,15 +518,21 @@ export const useData = create<DataState>()(
         }
         if (version < 4) {
           // Inject seed course if user has none, so opening a course works out of the box
-          if (!Array.isArray(persisted.courses) || persisted.courses.length === 0) {
-            persisted.courses = seedCourses;
-          }
+          persisted.courses = ensureSeedCourses(persisted.courses);
         }
         return persisted;
       },
       // Ensure the 3 hardcoded accounts always exist in users list
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        state.users = Array.isArray(state.users) ? state.users : [];
+        state.courses = ensureSeedCourses(state.courses);
+        state.assessments = Array.isArray(state.assessments) ? state.assessments : [];
+        state.submissions = Array.isArray(state.submissions) ? state.submissions : [];
+        state.certificates = Array.isArray(state.certificates) ? state.certificates : [];
+        state.notifications = Array.isArray(state.notifications) ? state.notifications : [];
+        state.messages = Array.isArray(state.messages) ? state.messages : [];
+        state.progress = state.progress && typeof state.progress === "object" ? state.progress : {};
         const have = new Set(state.users.map((u) => u.id));
         const missing = seedUsers.filter((u) => !have.has(u.id));
         if (missing.length > 0) state.users = [...missing, ...state.users];
