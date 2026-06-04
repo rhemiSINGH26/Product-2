@@ -48,20 +48,25 @@ const fileSizeLabel = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(bytes 
 function ContentBuilder() {
   const { user } = useAuth();
   const {
-    courses, assessments, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem,
+    courses, assessments, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem, updateAssessment,
   } = useData();
 
   const myCourses = useMemo(
     () => courses.filter((c) => !user || user.role !== "teacher" || c.teacherId === user.id),
     [courses, user],
   );
+  const myCourseIds = useMemo(() => new Set(myCourses.map((c) => c.id)), [myCourses]);
   const [courseId, setCourseId] = useState<string>("");
   useEffect(() => {
     if (!courseId && myCourses[0]) setCourseId(myCourses[0].id);
   }, [myCourses, courseId]);
 
   const course = courses.find((c) => c.id === courseId);
-  const courseAssessments = useMemo(() => assessments.filter((a) => a.courseId === courseId), [assessments, courseId]);
+  // Show ALL of the teacher's assessments so they can attach any of them; saving will rebind courseId if needed.
+  const pickableAssessments = useMemo(
+    () => assessments.filter((a) => myCourseIds.has(a.courseId)),
+    [assessments, myCourseIds],
+  );
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   // section dialog
@@ -113,6 +118,11 @@ function ContentBuilder() {
     };
     if (editingItemId) { updateItem(course.id, itemSectionId, editingItemId, payload); toast.success("Content updated."); }
     else { addItem(course.id, itemSectionId, payload); toast.success("Content added."); }
+    // Rebind the assessment to this course so it lives in the right place.
+    if (itemDraft.type === "assessment" && itemDraft.assessmentId) {
+      const linked = assessments.find((a) => a.id === itemDraft.assessmentId);
+      if (linked && linked.courseId !== course.id) updateAssessment(linked.id, { courseId: course.id });
+    }
     setItemDialog(false);
   };
 
@@ -291,10 +301,17 @@ function ContentBuilder() {
                 <Select value={itemDraft.assessmentId} onValueChange={(v) => setItemDraft({ ...itemDraft, assessmentId: v })}>
                   <SelectTrigger><SelectValue placeholder="Choose an assessment" /></SelectTrigger>
                   <SelectContent>
-                    {courseAssessments.map((a) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}
+                    {pickableAssessments.map((a) => {
+                      const c = courses.find((x) => x.id === a.courseId);
+                      return (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.title}{a.isFinal ? " · Final" : ""}{c && c.id !== courseId ? ` (from ${c.name})` : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
-                {courseAssessments.length === 0 && <p className="text-xs text-muted-foreground">Create an assessment for this course first.</p>}
+                {pickableAssessments.length === 0 && <p className="text-xs text-muted-foreground">Create an assessment first from the Assessments page.</p>}
               </div>
             ) : (
               <div className="space-y-2">

@@ -573,10 +573,18 @@ export function courseProgressPct(progress: Record<string, string[]>, studentId:
   return Math.min(100, Math.round((done / total) * 100));
 }
 
-export function isCourseExpired(course: Course): boolean {
-  if (!course || course.accessMode === "lifetime") return false;
-  if (!course.endDate) return false;
-  const end = new Date(course.endDate);
+export function studentAccessFor(course: Course, studentId?: string): { accessMode: "lifetime" | "limited"; endDate?: string } {
+  const sa = studentId ? course.studentAccess?.[studentId] : undefined;
+  if (sa) return { accessMode: sa.accessMode, endDate: sa.endDate };
+  return { accessMode: course.accessMode ?? "lifetime", endDate: course.endDate };
+}
+
+export function isCourseExpired(course: Course, studentId?: string): boolean {
+  if (!course) return false;
+  const { accessMode, endDate } = studentAccessFor(course, studentId);
+  if (accessMode === "lifetime") return false;
+  if (!endDate) return false;
+  const end = new Date(endDate);
   if (isNaN(end.getTime())) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);

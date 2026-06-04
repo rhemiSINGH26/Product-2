@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/lib/store";
-import { useData, maxScore, submissionScore } from "@/lib/data-store";
+import { useData, maxScore, submissionScore, courseProgressPct } from "@/lib/data-store";
+import { LockKeyhole } from "lucide-react";
 
 export const Route = createFileRoute("/student/assessments/$assessmentId")({ component: QuizPage });
 
@@ -18,7 +19,7 @@ function QuizPage() {
   const { assessmentId } = useParams({ from: "/student/assessments/$assessmentId" });
   const { user } = useAuth();
   const nav = useNavigate();
-  const { assessments, courses, submissions, submitQuiz } = useData();
+  const { assessments, courses, submissions, submitQuiz, progress } = useData();
 
   const a = assessments.find((x) => x.id === assessmentId);
   const course = a ? courses.find((c) => c.id === a.courseId) : null;
@@ -69,6 +70,29 @@ function QuizPage() {
         <GlassCard className="text-center py-12 text-muted-foreground">You're not enrolled in this course.</GlassCard>
       </div>
     );
+  }
+
+  if (a.isFinal && user) {
+    const pct = courseProgressPct(progress, user.id, course);
+    const totalItems = course.sections.reduce((n, s) => n + s.items.length, 0);
+    if (pct < 100 || totalItems === 0) {
+      return (
+        <div className="space-y-4">
+          <Button asChild variant="ghost"><Link to="/student/courses/$courseId" params={{ courseId: course.id }}><ArrowLeft className="mr-2 h-4 w-4" />Back to course</Link></Button>
+          <GlassCard className="mx-auto max-w-xl text-center py-14">
+            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-warning/15 text-warning">
+              <LockKeyhole className="h-7 w-7" />
+            </div>
+            <h2 className="text-xl font-semibold">Final test locked</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Complete every item in <span className="font-medium text-foreground">{course.name}</span> to unlock this final test.</p>
+            <div className="mt-4 mx-auto max-w-xs">
+              <Progress value={pct} className="h-2" />
+              <div className="mt-1 text-xs text-muted-foreground">{pct}% complete</div>
+            </div>
+          </GlassCard>
+        </div>
+      );
+    }
   }
 
   function handleSubmit(auto = false) {

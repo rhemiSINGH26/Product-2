@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/store";
-import { useData, courseProgressPct, isCourseExpired, type StoreAssessment } from "@/lib/data-store";
+import { useData, courseProgressPct, isCourseExpired, studentAccessFor, type StoreAssessment } from "@/lib/data-store";
 import type { ContentItem, ContentType } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { ClipboardCheck } from "lucide-react";
@@ -61,7 +61,8 @@ function CourseLearning() {
       </div>
     );
   }
-  if (isCourseExpired(course)) {
+  if (isCourseExpired(course, user.id)) {
+    const access = studentAccessFor(course, user.id);
     return (
       <div className="space-y-4">
         <Button asChild variant="ghost"><Link to="/student/courses"><ArrowLeft className="mr-2 h-4 w-4" />Back</Link></Button>
@@ -70,7 +71,7 @@ function CourseLearning() {
             <LockKeyhole className="h-7 w-7" />
           </div>
           <h2 className="text-xl font-semibold">Course access expired</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Your access ended on {course.endDate || "the scheduled end date"}.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Your access ended on {access.endDate || "the scheduled end date"}.</p>
           <div className="mt-5 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" /> Contact your instructor to extend access.
           </div>
@@ -148,21 +149,55 @@ function CourseLearning() {
 
           {(() => {
             const courseAssessments = assessments.filter((a) => a.courseId === course.id);
-            if (courseAssessments.length === 0) return null;
+            const regular = courseAssessments.filter((a) => !a.isFinal);
+            const finals = courseAssessments.filter((a) => a.isFinal);
+            const courseComplete = pct >= 100 && allItems.length > 0;
             return (
-              <GlassCard className="p-3">
-                <div className="px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">Assessments</div>
-                <div className="space-y-0.5">
-                  {courseAssessments.map((a) => (
-                    <Link key={a.id} to="/student/assessments/$assessmentId" params={{ assessmentId: a.id }}
-                      className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-secondary/40 transition">
-                      <ClipboardCheck className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="flex-1 truncate">{a.title}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
-                    </Link>
-                  ))}
-                </div>
-              </GlassCard>
+              <>
+                {regular.length > 0 && (
+                  <GlassCard className="p-3">
+                    <div className="px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">Assessments</div>
+                    <div className="space-y-0.5">
+                      {regular.map((a) => (
+                        <Link key={a.id} to="/student/assessments/$assessmentId" params={{ assessmentId: a.id }}
+                          className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-secondary/40 transition">
+                          <ClipboardCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="flex-1 truncate">{a.title}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </GlassCard>
+                )}
+                {finals.length > 0 && (
+                  <GlassCard className="p-3 border-primary/30">
+                    <div className="px-2 py-1.5 text-xs uppercase tracking-wider text-primary">Final Test</div>
+                    {!courseComplete && (
+                      <div className="mx-2 mb-2 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-2 py-1.5 text-[11px] text-warning">
+                        <LockKeyhole className="h-3 w-3" />Complete all course content ({pct}%) to unlock.
+                      </div>
+                    )}
+                    <div className="space-y-0.5">
+                      {finals.map((a) => (
+                        courseComplete ? (
+                          <Link key={a.id} to="/student/assessments/$assessmentId" params={{ assessmentId: a.id }}
+                            className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-secondary/40 transition">
+                            <ClipboardCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <span className="flex-1 truncate">{a.title}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
+                          </Link>
+                        ) : (
+                          <div key={a.id} className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-sm opacity-50 cursor-not-allowed">
+                            <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
+                            <span className="flex-1 truncate">{a.title}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  </GlassCard>
+                )}
+              </>
             );
           })()}
         </div>

@@ -34,6 +34,11 @@ export interface Section {
   items: ContentItem[];
 }
 
+export interface StudentAccess {
+  accessMode: "lifetime" | "limited";
+  endDate?: string;
+}
+
 export interface Course {
   id: string;
   name: string;
@@ -41,6 +46,8 @@ export interface Course {
   description: string;
   teacherId: string;
   studentIds: string[];
+  /** Per-student access settings (configured at enrollment time). */
+  studentAccess?: Record<string, StudentAccess>;
   thumbnail: string;
   startDate: string;
   endDate: string;
