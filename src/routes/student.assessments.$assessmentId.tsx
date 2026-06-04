@@ -38,6 +38,9 @@ function QuizPage() {
   const [remaining, setRemaining] = useState(0);
   const [done, setDone] = useState<string | null>(null);
 
+  const requiresCamera = !!(a && a.isFinal);
+  const proctor = useProctor({ enabled: started && !done, camera: requiresCamera });
+
   useEffect(() => {
     if (!started || done) return;
     setRemaining(a ? a.timeLimit * 60 : 0);
