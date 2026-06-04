@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Users, Search, Mail } from "lucide-react";
+import { Users, Search, Mail, Download } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, GlassCard, StatCard } from "@/components/ui-kit";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/store";
 import { useData, courseProgressPct, submissionScore } from "@/lib/data-store";
+import { downloadCSV } from "@/lib/exports";
 
 export const Route = createFileRoute("/teacher/students")({ component: TeacherStudents });
 
