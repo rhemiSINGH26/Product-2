@@ -33,15 +33,16 @@ const statusColors: Record<Course["status"], string> = {
   archived: "border-border text-muted-foreground bg-secondary/40",
 };
 
+type StudentAccessDraft = { accessMode: "lifetime" | "limited"; endDate?: string };
 type Draft = {
   name: string; code: string; description: string; thumbnail: string;
-  teacherId: string; status: Course["status"]; startDate: string; endDate: string;
-  studentIds: string[]; accessMode: Course["accessMode"];
+  teacherId: string; status: Course["status"];
+  studentIds: string[];
+  studentAccess: Record<string, StudentAccessDraft>;
 };
 const emptyDraft: Draft = {
   name: "", code: "", description: "", thumbnail: "📘",
-  teacherId: "", status: "draft", startDate: "", endDate: "", studentIds: [],
-  accessMode: "lifetime",
+  teacherId: "", status: "draft", studentIds: [], studentAccess: {},
 };
 
 function CourseManagement() {
@@ -65,17 +66,30 @@ function CourseManagement() {
     setEditing(c);
     setDraft({
       name: c.name, code: c.code, description: c.description, thumbnail: c.thumbnail,
-      teacherId: c.teacherId, status: c.status, startDate: c.startDate, endDate: c.endDate,
+      teacherId: c.teacherId, status: c.status,
       studentIds: [...c.studentIds],
-      accessMode: c.accessMode ?? "lifetime",
+      studentAccess: { ...(c.studentAccess ?? {}) },
     });
     setDialogOpen(true);
   };
 
   const toggleStudent = (id: string) =>
+    setDraft((d) => {
+      const has = d.studentIds.includes(id);
+      const studentIds = has ? d.studentIds.filter((s) => s !== id) : [...d.studentIds, id];
+      const studentAccess = { ...d.studentAccess };
+      if (has) delete studentAccess[id];
+      else if (!studentAccess[id]) studentAccess[id] = { accessMode: "lifetime" };
+      return { ...d, studentIds, studentAccess };
+    });
+
+  const setStudentAccess = (id: string, patch: Partial<StudentAccessDraft>) =>
     setDraft((d) => ({
       ...d,
-      studentIds: d.studentIds.includes(id) ? d.studentIds.filter((s) => s !== id) : [...d.studentIds, id],
+      studentAccess: {
+        ...d.studentAccess,
+        [id]: { accessMode: "lifetime", ...(d.studentAccess[id] ?? {}), ...patch },
+      },
     }));
 
   const save = () => {
@@ -83,11 +97,25 @@ function CourseManagement() {
       toast.error("Course name and code are required.");
       return;
     }
+    for (const sid of draft.studentIds) {
+      const a = draft.studentAccess[sid];
+      if (a?.accessMode === "limited" && !a.endDate) {
+        toast.error(`Set an end date for ${users.find((u) => u.id === sid)?.name ?? "student"}.`);
+        return;
+      }
+    }
+    const payload = {
+      ...draft,
+      // legacy fields kept for backward compat
+      startDate: "",
+      endDate: "",
+      accessMode: "lifetime" as const,
+    };
     if (editing) {
-      updateCourse(editing.id, draft);
+      updateCourse(editing.id, payload);
       toast.success(`Updated ${draft.name}.`);
     } else {
-      addCourse(draft);
+      addCourse(payload);
       toast.success(`Created ${draft.name}.`);
     }
     setDialogOpen(false);
