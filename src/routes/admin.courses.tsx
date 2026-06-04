@@ -88,7 +88,7 @@ function CourseManagement() {
       ...d,
       studentAccess: {
         ...d.studentAccess,
-        [id]: { accessMode: "lifetime", ...(d.studentAccess[id] ?? {}), ...patch },
+        [id]: { accessMode: d.studentAccess[id]?.accessMode ?? "lifetime", ...(d.studentAccess[id] ?? {}), ...patch },
       },
     }));
 
