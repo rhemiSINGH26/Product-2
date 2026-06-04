@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/store";
-import { useData, courseProgressPct, isCourseExpired, type StoreAssessment } from "@/lib/data-store";
+import { useData, courseProgressPct, isCourseExpired, studentAccessFor, type StoreAssessment } from "@/lib/data-store";
 import type { ContentItem, ContentType } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { ClipboardCheck } from "lucide-react";
