@@ -147,7 +147,7 @@ interface DataState {
 
 const initial = {
   users: seedUsers,
-  courses: [] as Course[],
+  courses: seedCourses,
   assessments: [] as StoreAssessment[],
   submissions: [] as Submission[],
   certificates: [] as Certificate[],
