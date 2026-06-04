@@ -84,13 +84,11 @@ function CourseManagement() {
     });
 
   const setStudentAccess = (id: string, patch: Partial<StudentAccessDraft>) =>
-    setDraft((d) => ({
-      ...d,
-      studentAccess: {
-        ...d.studentAccess,
-        [id]: { accessMode: d.studentAccess[id]?.accessMode ?? "lifetime", ...(d.studentAccess[id] ?? {}), ...patch },
-      },
-    }));
+    setDraft((d) => {
+      const current: StudentAccessDraft = d.studentAccess[id] ?? { accessMode: "lifetime" };
+      const next: StudentAccessDraft = { ...current, ...patch };
+      return { ...d, studentAccess: { ...d.studentAccess, [id]: next } };
+    });
 
   const save = () => {
     if (!draft.name.trim() || !draft.code.trim()) {
