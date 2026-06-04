@@ -47,7 +47,8 @@ function StudentCourses() {
           {my.map((c) => {
             const p = user ? courseProgressPct(progress, user.id, c) : 0;
             const teacher = users.find((u) => u.id === c.teacherId);
-            const expired = isCourseExpired(c);
+            const expired = user ? isCourseExpired(c, user.id) : false;
+            const access = studentAccessFor(c, user?.id);
             return (
               <GlassCard key={c.id} className="flex flex-col">
                 <div className="flex items-start justify-between">
@@ -55,8 +56,8 @@ function StudentCourses() {
                   <Badge variant="outline" className="border-border text-[10px]">{c.code}</Badge>
                 </div>
                 <Badge variant="outline" className={expired ? "mt-3 w-fit border-destructive/40 text-destructive bg-destructive/10" : "mt-3 w-fit border-border text-muted-foreground bg-secondary/30"}>
-                  {c.accessMode === "lifetime" ? <InfinityIcon className="mr-1 h-3 w-3" /> : <CalendarDays className="mr-1 h-3 w-3" />}
-                  {c.accessMode === "lifetime" ? "Lifetime" : expired ? "Expired" : `Expires ${c.endDate || "soon"}`}
+                  {access.accessMode === "lifetime" ? <InfinityIcon className="mr-1 h-3 w-3" /> : <CalendarDays className="mr-1 h-3 w-3" />}
+                  {access.accessMode === "lifetime" ? "Lifetime" : expired ? "Expired" : `Expires ${access.endDate || "soon"}`}
                 </Badge>
                 <h3 className="mt-3 font-semibold leading-tight">{c.name}</h3>
                 <p className="mt-1 text-xs text-muted-foreground line-clamp-2 flex-1">{c.description}</p>
