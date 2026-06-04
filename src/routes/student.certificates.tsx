@@ -143,30 +143,3 @@ function StudentCertificates() {
     </div>
   );
 }
-
-function renderCertHTML(c: Certificate, studentName: string, courseName: string, teacher: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Certificate ${c.id}</title>
-<style>
-  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#0a0a0a;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}
-  .cert{background:linear-gradient(160deg,#1a1a1a,#0a0a0a);border:2px solid #dc2626;border-radius:20px;padding:64px;max-width:760px;text-align:center;box-shadow:0 30px 80px rgba(220,38,38,.25)}
-  .label{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:#a3a3a3}
-  .name{font-size:42px;font-weight:800;background:linear-gradient(90deg,#dc2626,#fff);-webkit-background-clip:text;background-clip:text;color:transparent;margin:24px 0 12px}
-  .course{font-size:22px;font-weight:600;margin-top:8px}
-  .meta{display:flex;justify-content:space-around;margin-top:32px;font-size:12px;color:#a3a3a3}
-  .meta b{display:block;color:#fff;font-size:14px;margin-bottom:4px}
-  .id{margin-top:32px;font-family:ui-monospace,monospace;font-size:10px;color:#737373}
-</style></head><body>
-<div class="cert">
-  <div class="label">iTech Academy</div>
-  <div class="label" style="margin-top:4px">Certificate of Completion</div>
-  <div class="name">${studentName}</div>
-  <div style="font-size:14px;color:#a3a3a3">has successfully completed</div>
-  <div class="course">${courseName}</div>
-  <div class="meta">
-    <div><b>${c.score}%</b>Final Score</div>
-    <div><b>${c.issuedAt ?? "—"}</b>Issued</div>
-    <div><b>${teacher}</b>Instructor</div>
-  </div>
-  <div class="id">ID: ${c.id}</div>
-</div></body></html>`;
-}
