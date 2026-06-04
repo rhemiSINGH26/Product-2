@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useData, type ContentType, type ContentItem } from "@/lib/data-store";
 import { useAuth } from "@/lib/store";
+import { FileUploadButton } from "@/components/FileUploadButton";
 
 export const Route = createFileRoute("/teacher/content")({ component: ContentBuilder });
 
@@ -39,13 +40,15 @@ const typeMeta: Record<ContentType, { icon: typeof Video; label: string; color: 
   assessment: { icon: ClipboardList, label: "Assessment", color: "text-primary" },
 };
 
-type ItemDraft = { type: ContentType; title: string; url: string; duration: string; fileSize: string; body: string };
-const emptyItem: ItemDraft = { type: "video", title: "", url: "", duration: "", fileSize: "", body: "" };
+type ItemDraft = { type: ContentType; title: string; url: string; duration: string; fileSize: string; body: string; assessmentId: string };
+const emptyItem: ItemDraft = { type: "video", title: "", url: "", duration: "", fileSize: "", body: "", assessmentId: "" };
+
+const fileSizeLabel = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(bytes > 1024 * 1024 ? 1 : 2)} MB`;
 
 function ContentBuilder() {
   const { user } = useAuth();
   const {
-    courses, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem,
+    courses, assessments, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem,
   } = useData();
 
   const myCourses = useMemo(
@@ -58,6 +61,7 @@ function ContentBuilder() {
   }, [myCourses, courseId]);
 
   const course = courses.find((c) => c.id === courseId);
+  const courseAssessments = useMemo(() => assessments.filter((a) => a.courseId === courseId), [assessments, courseId]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   // section dialog
@@ -90,13 +94,14 @@ function ContentBuilder() {
     setItemSectionId(sectionId); setEditingItemId(item.id);
     setItemDraft({
       type: item.type, title: item.title, url: item.url ?? "",
-      duration: item.duration ? String(item.duration) : "", fileSize: item.fileSize ?? "", body: item.body ?? "",
+      duration: item.duration ? String(item.duration) : "", fileSize: item.fileSize ?? "", body: item.body ?? "", assessmentId: item.assessmentId ?? "",
     });
     setItemDialog(true);
   };
   const saveItem = () => {
     if (!itemDraft.title.trim()) { toast.error("Title is required."); return; }
     if (!course) return;
+    if (itemDraft.type === "assessment" && !itemDraft.assessmentId) { toast.error("Choose an assessment."); return; }
     const payload: Omit<ContentItem, "id"> = {
       type: itemDraft.type,
       title: itemDraft.title.trim(),
@@ -104,6 +109,7 @@ function ContentBuilder() {
       duration: itemDraft.duration ? Number(itemDraft.duration) : undefined,
       fileSize: itemDraft.fileSize.trim() || undefined,
       body: itemDraft.body.trim() || undefined,
+      assessmentId: itemDraft.type === "assessment" ? itemDraft.assessmentId || undefined : undefined,
     };
     if (editingItemId) { updateItem(course.id, itemSectionId, editingItemId, payload); toast.success("Content updated."); }
     else { addItem(course.id, itemSectionId, payload); toast.success("Content added."); }
@@ -261,7 +267,7 @@ function ContentBuilder() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Type</Label>
-              <Select value={itemDraft.type} onValueChange={(v) => setItemDraft({ ...itemDraft, type: v as ContentType })}>
+              <Select value={itemDraft.type} onValueChange={(v) => setItemDraft({ ...itemDraft, type: v as ContentType, url: "", body: "", assessmentId: "" })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(typeMeta) as ContentType[]).map((t) => (
@@ -279,10 +285,28 @@ function ContentBuilder() {
                 <Label htmlFor="ibody">Reading content</Label>
                 <Textarea id="ibody" rows={4} value={itemDraft.body} onChange={(e) => setItemDraft({ ...itemDraft, body: e.target.value })} placeholder="Write the reading text..." />
               </div>
+            ) : itemDraft.type === "assessment" ? (
+              <div className="space-y-2">
+                <Label>Assessment</Label>
+                <Select value={itemDraft.assessmentId} onValueChange={(v) => setItemDraft({ ...itemDraft, assessmentId: v })}>
+                  <SelectTrigger><SelectValue placeholder="Choose an assessment" /></SelectTrigger>
+                  <SelectContent>
+                    {courseAssessments.map((a) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {courseAssessments.length === 0 && <p className="text-xs text-muted-foreground">Create an assessment for this course first.</p>}
+              </div>
             ) : (
               <div className="space-y-2">
                 <Label htmlFor="iurl">URL</Label>
                 <Input id="iurl" value={itemDraft.url} onChange={(e) => setItemDraft({ ...itemDraft, url: e.target.value })} placeholder="https://..." />
+                {(["video", "pdf", "image", "ppt"] as ContentType[]).includes(itemDraft.type) && (
+                  <FileUploadButton
+                    accept={itemDraft.type === "image" ? "image/*" : itemDraft.type === "ppt" ? ".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" : itemDraft.type === "pdf" ? "application/pdf" : "video/*"}
+                    label={`Upload ${typeMeta[itemDraft.type].label}`}
+                    onUpload={(dataUrl, file) => setItemDraft((d) => ({ ...d, url: dataUrl, fileSize: fileSizeLabel(file.size), title: d.title || file.name }))}
+                  />
+                )}
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
@@ -292,7 +316,7 @@ function ContentBuilder() {
                   <Input id="idur" type="number" value={itemDraft.duration} onChange={(e) => setItemDraft({ ...itemDraft, duration: e.target.value })} placeholder="12" />
                 </div>
               )}
-              {(itemDraft.type === "pdf" || itemDraft.type === "download") && (
+              {(["pdf", "download", "image", "ppt"] as ContentType[]).includes(itemDraft.type) && (
                 <div className="space-y-2">
                   <Label htmlFor="isize">File size</Label>
                   <Input id="isize" value={itemDraft.fileSize} onChange={(e) => setItemDraft({ ...itemDraft, fileSize: e.target.value })} placeholder="2.4 MB" />
