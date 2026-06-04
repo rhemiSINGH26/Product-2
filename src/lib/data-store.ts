@@ -124,11 +124,11 @@ interface DataState {
   deleteQuestion: (assessmentId: string, questionId: string) => void;
 
   // submissions
-  submitQuiz: (assessmentId: string, studentId: string, answers: Record<string, string>) => string;
+  submitQuiz: (assessmentId: string, studentId: string, answers: Record<string, string>, proctorEvents?: ProctorEventRecord[]) => string;
   gradeSubmission: (submissionId: string, awards: Record<string, number>, feedback?: string) => void;
 
   // certificates
-  requestCertificate: (studentId: string, courseId: string, score: number, note?: string) => void;
+  requestCertificate: (studentId: string, courseId: string, score: number, note?: string, proctorLog?: ProctorEventRecord[]) => void;
   approveCertificate: (id: string) => void;
   rejectCertificate: (id: string, reason?: string) => void;
 
