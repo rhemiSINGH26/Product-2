@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/store";
 import { useData } from "@/lib/data-store";
+import { openPrintableCertificate } from "@/lib/certificate";
 import type { Certificate } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/student/certificates")({ component: StudentCertificates });
