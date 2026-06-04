@@ -391,26 +391,32 @@ export const useData = create<DataState>()(
             };
             // auto-request certificate after grading if passed
             if (a && a.isFinal && pct >= a.passingScore) {
-              setTimeout(() => maybeRequestCert(get, sub.studentId, a.courseId, pct), 0);
+              setTimeout(() => maybeRequestCert(get, sub.studentId, a.courseId, pct, sub.proctorEvents), 0);
             }
             return { submissions: updated, notifications: [note, ...s.notifications] };
           }
           return { submissions: updated };
         }),
 
-      requestCertificate: (studentId, courseId, score, note) => {
+      requestCertificate: (studentId, courseId, score, note, proctorLog) => {
         const id = uid("cert");
         const cert: Certificate = {
           id, studentId, courseId, score,
           status: "pending",
           requestedAt: new Date().toISOString().slice(0, 10),
           teacherNote: note,
+          proctorLog,
         };
         set((s) => ({ certificates: [cert, ...s.certificates] }));
-        // notify admins
-        get().users.filter((u) => u.role === "admin").forEach((a) =>
-          get().notify(a.id, "Certificate request", "A teacher has requested a certificate for review."),
-        );
+        // notify admins & the course's teacher with proctor summary
+        const susTypes = ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","multiple_faces"];
+        const sus = (proctorLog ?? []).filter((e) => susTypes.includes(e.type)).length;
+        const msg = sus > 0
+          ? `New certificate request — ${sus} suspicious proctor event${sus === 1 ? "" : "s"} flagged.`
+          : "A new certificate request is awaiting review.";
+        get().users.filter((u) => u.role === "admin").forEach((a) => get().notify(a.id, "Certificate request", msg, "/admin/certificates"));
+        const course = get().courses.find((c) => c.id === courseId);
+        if (course?.teacherId) get().notify(course.teacherId, "Certificate request submitted", msg, "/teacher/certificates");
       },
       approveCertificate: (id) =>
         set((s) => {
