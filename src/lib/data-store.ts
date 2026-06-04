@@ -29,6 +29,8 @@ export interface SubmissionResponse {
   awarded: number | null;
 }
 
+export interface ProctorEventRecord { at: string; type: string; detail?: string; }
+
 export interface Submission {
   id: string;
   assessmentId: string;
@@ -37,6 +39,7 @@ export interface Submission {
   responses: SubmissionResponse[];
   status: "submitted" | "graded";
   feedback?: string;
+  proctorEvents?: ProctorEventRecord[];
 }
 
 let counter = 0;
@@ -121,11 +124,11 @@ interface DataState {
   deleteQuestion: (assessmentId: string, questionId: string) => void;
 
   // submissions
-  submitQuiz: (assessmentId: string, studentId: string, answers: Record<string, string>) => string;
+  submitQuiz: (assessmentId: string, studentId: string, answers: Record<string, string>, proctorEvents?: ProctorEventRecord[]) => string;
   gradeSubmission: (submissionId: string, awards: Record<string, number>, feedback?: string) => void;
 
   // certificates
-  requestCertificate: (studentId: string, courseId: string, score: number, note?: string) => void;
+  requestCertificate: (studentId: string, courseId: string, score: number, note?: string, proctorLog?: ProctorEventRecord[]) => void;
   approveCertificate: (id: string) => void;
   rejectCertificate: (id: string, reason?: string) => void;
 
@@ -178,12 +181,12 @@ function ensureSeedCourses(courses: unknown): Course[] {
 const syncQuestionCount = (a: StoreAssessment): StoreAssessment => ({ ...a, questionCount: a.questions.length });
 
 // Auto-issue a certificate request if the student passed and doesn't already have one
-function maybeRequestCert(get: () => DataState, studentId: string, courseId: string, score: number) {
+function maybeRequestCert(get: () => DataState, studentId: string, courseId: string, score: number, proctorLog?: ProctorEventRecord[]) {
   const existing = get().certificates.find(
     (c) => c.studentId === studentId && c.courseId === courseId && c.status !== "rejected",
   );
   if (existing) return;
-  get().requestCertificate(studentId, courseId, score, "Auto-generated from passing quiz score.");
+  get().requestCertificate(studentId, courseId, score, "Auto-generated from passing final exam.", proctorLog);
 }
 
 export const useData = create<DataState>()(
@@ -315,7 +318,7 @@ export const useData = create<DataState>()(
           ),
         })),
 
-      submitQuiz: (assessmentId, studentId, answers) => {
+      submitQuiz: (assessmentId, studentId, answers, proctorEvents) => {
         const a = get().assessments.find((x) => x.id === assessmentId);
         if (!a) return "";
         const responses: SubmissionResponse[] = a.questions.map((q) => {
@@ -336,6 +339,7 @@ export const useData = create<DataState>()(
           submittedAt: new Date().toISOString().slice(0, 10),
           responses,
           status: needsGrading ? "submitted" : "graded",
+          proctorEvents,
         };
         set((s) => ({ submissions: [sub, ...s.submissions] }));
 
@@ -351,7 +355,7 @@ export const useData = create<DataState>()(
           const pct = max ? Math.round((earned / max) * 100) : 0;
           get().notify(studentId, "Quiz auto-graded", `${a.title}: ${pct}% (${earned}/${max}).`);
           // Final exam: auto-request a certificate for admin verification
-          if (pct >= a.passingScore && a.isFinal) maybeRequestCert(get, studentId, a.courseId, pct);
+          if (pct >= a.passingScore && a.isFinal) maybeRequestCert(get, studentId, a.courseId, pct, proctorEvents);
         }
         return id;
       },
@@ -387,26 +391,32 @@ export const useData = create<DataState>()(
             };
             // auto-request certificate after grading if passed
             if (a && a.isFinal && pct >= a.passingScore) {
-              setTimeout(() => maybeRequestCert(get, sub.studentId, a.courseId, pct), 0);
+              setTimeout(() => maybeRequestCert(get, sub.studentId, a.courseId, pct, sub.proctorEvents), 0);
             }
             return { submissions: updated, notifications: [note, ...s.notifications] };
           }
           return { submissions: updated };
         }),
 
-      requestCertificate: (studentId, courseId, score, note) => {
+      requestCertificate: (studentId, courseId, score, note, proctorLog) => {
         const id = uid("cert");
         const cert: Certificate = {
           id, studentId, courseId, score,
           status: "pending",
           requestedAt: new Date().toISOString().slice(0, 10),
           teacherNote: note,
+          proctorLog,
         };
         set((s) => ({ certificates: [cert, ...s.certificates] }));
-        // notify admins
-        get().users.filter((u) => u.role === "admin").forEach((a) =>
-          get().notify(a.id, "Certificate request", "A teacher has requested a certificate for review."),
-        );
+        // notify admins & the course's teacher with proctor summary
+        const susTypes = ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","multiple_faces"];
+        const sus = (proctorLog ?? []).filter((e) => susTypes.includes(e.type)).length;
+        const msg = sus > 0
+          ? `New certificate request — ${sus} suspicious proctor event${sus === 1 ? "" : "s"} flagged.`
+          : "A new certificate request is awaiting review.";
+        get().users.filter((u) => u.role === "admin").forEach((a) => get().notify(a.id, "Certificate request", msg, "/admin/certificates"));
+        const course = get().courses.find((c) => c.id === courseId);
+        if (course?.teacherId) get().notify(course.teacherId, "Certificate request submitted", msg, "/teacher/certificates");
       },
       approveCertificate: (id) =>
         set((s) => {

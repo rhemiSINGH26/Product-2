@@ -3,7 +3,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, BookOpen, BarChart3, Award, FileEdit, ClipboardCheck,
   GraduationCap, MessageSquare, Bell, Search, ChevronLeft, LogOut, Settings, FileCheck,
-  Inbox,
+  Inbox, ShieldCheck,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/lib/store";
@@ -27,6 +27,7 @@ const navByRole = {
     { to: "/admin/courses", label: "Courses", icon: BookOpen },
     { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { to: "/admin/certificates", label: "Certificates", icon: Award },
+    { to: "/verify", label: "Verify Certificate", icon: ShieldCheck },
   ],
   teacher: [
     { to: "/teacher", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -34,6 +35,7 @@ const navByRole = {
     { to: "/teacher/assessments", label: "Assessments", icon: ClipboardCheck },
     { to: "/teacher/students", label: "Student Progress", icon: Users },
     { to: "/teacher/certificates", label: "Certificate Requests", icon: FileCheck },
+    { to: "/verify", label: "Verify Certificate", icon: ShieldCheck },
     { to: "/teacher/messages", label: "Messages", icon: MessageSquare },
   ],
   student: [

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Clock, ShieldCheck, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Clock, ShieldCheck, AlertTriangle, CheckCircle2, Camera, Eye } from "lucide-react";
 import { PageHeader, GlassCard } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/lib/store";
 import { useData, maxScore, submissionScore, courseProgressPct } from "@/lib/data-store";
+import { useProctor } from "@/lib/proctor";
 import { LockKeyhole } from "lucide-react";
 
 export const Route = createFileRoute("/student/assessments/$assessmentId")({ component: QuizPage });
@@ -36,6 +37,9 @@ function QuizPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(0);
   const [done, setDone] = useState<string | null>(null);
+
+  const requiresCamera = !!(a && a.isFinal);
+  const proctor = useProctor({ enabled: started && !done, camera: requiresCamera });
 
   useEffect(() => {
     if (!started || done) return;
@@ -97,7 +101,8 @@ function QuizPage() {
 
   function handleSubmit(auto = false) {
     if (!user || !a) return;
-    const id = submitQuiz(a.id, user.id, answers);
+    proctor.log("submitted", auto ? "timeout" : "manual");
+    const id = submitQuiz(a.id, user.id, answers, proctor.events);
     if (auto) toast.warning("Time's up — auto-submitted");
     else toast.success("Submitted!");
     setDone(id);
@@ -168,11 +173,18 @@ function QuizPage() {
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Attempts left</div>
             </div>
           </div>
-          {a.proctored && (
-            <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 border border-primary/30 rounded-lg p-3">
-              <ShieldCheck className="h-4 w-4" />This quiz is proctored. Do not switch tabs once started.
+          <div className="flex items-start gap-2 text-sm text-primary bg-primary/10 border border-primary/30 rounded-lg p-3">
+            <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-semibold">Proctoring is enabled</div>
+              <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-foreground/80">
+                <li>The quiz will open in <strong>fullscreen</strong>. Exiting fullscreen is logged.</li>
+                <li>Tab switches, copy/paste, right-click and shortcut keys are recorded.</li>
+                {requiresCamera && <li><strong>Camera access is required</strong> for this final exam. A live preview will be visible while you take the test.</li>}
+                <li>All suspicious activity is shared with your instructor and admin with the certificate request.</li>
+              </ul>
             </div>
-          )}
+          </div>
           <div className="text-sm text-muted-foreground">
             Worth {maxScore(a)} points across {a.questions.length} questions. Once started the timer cannot be paused.
           </div>
@@ -201,6 +213,8 @@ function QuizPage() {
   const secs = remaining % 60;
   const lowTime = remaining < 60;
 
+  const susCount = proctor.events.filter((e) => ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended"].includes(e.type)).length;
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur pb-3 -mt-6 pt-6">
@@ -208,7 +222,7 @@ function QuizPage() {
           <div className="flex-1 min-w-0">
             <div className="font-semibold truncate">{a.title}</div>
             <Progress value={(answered / Math.max(1, a.questions.length)) * 100} className="h-1 mt-1" />
-            <div className="text-xs text-muted-foreground mt-1">{answered}/{a.questions.length} answered</div>
+            <div className="text-xs text-muted-foreground mt-1">{answered}/{a.questions.length} answered · <span className={susCount > 0 ? "text-warning" : ""}><Eye className="inline h-3 w-3 -mt-0.5" /> {susCount} flag{susCount === 1 ? "" : "s"}</span></div>
           </div>
           <div className={`flex items-center gap-1.5 font-mono text-sm font-bold ${lowTime ? "text-destructive animate-pulse" : "text-primary"}`}>
             <Clock className="h-4 w-4" />
@@ -216,6 +230,16 @@ function QuizPage() {
           </div>
         </GlassCard>
       </div>
+
+      {requiresCamera && (
+        <div className="fixed bottom-4 right-4 z-50 w-44 rounded-xl overflow-hidden border-2 border-primary/50 bg-black shadow-2xl">
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/90 text-primary-foreground text-[10px] font-semibold uppercase tracking-wider">
+            <Camera className="h-3 w-3" /> Proctor camera
+          </div>
+          <video ref={proctor.videoRef} muted playsInline className="w-full h-32 object-cover bg-black" />
+          {proctor.cameraError && <div className="px-2 py-1 text-[10px] text-destructive bg-destructive/10">{proctor.cameraError}</div>}
+        </div>
+      )}
 
       {a.questions.map((q, i) => (
         <GlassCard key={q.id} className="space-y-3">

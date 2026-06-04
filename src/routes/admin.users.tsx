@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search, Users as UsersIcon, GraduationCap, Shield } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Users as UsersIcon, GraduationCap, Shield, Download } from "lucide-react";
 import { PageHeader, GlassCard, StatCard } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,8 @@ import {
   Tabs, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { useData, type User, type Role } from "@/lib/data-store";
+import { useData, courseProgressPct, submissionScore, type User, type Role } from "@/lib/data-store";
+import { downloadCSV } from "@/lib/exports";
 import { Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users")({ component: UserManagement });
@@ -39,7 +40,7 @@ type Draft = { name: string; email: string; password: string; role: Role; status
 const emptyDraft: Draft = { name: "", email: "", password: "", role: "student", status: "active" };
 
 function UserManagement() {
-  const { users, addUser, updateUser, deleteUser } = useData();
+  const { users, courses, assessments, submissions, certificates, progress, addUser, updateUser, deleteUser } = useData();
   const [query, setQuery] = useState("");
   const [roleTab, setRoleTab] = useState<"all" | Role>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -110,15 +111,88 @@ function UserManagement() {
     setToDelete(null);
   };
 
+  const exportUsersCsv = () => {
+    const rows: (string | number)[][] = [
+      ["ID","Name","Email","Role","Status","Joined","Enrolled Course IDs"],
+      ...users.map((u) => [u.id, u.name, u.email, u.role, u.status, u.joinedAt, (u.courseIds ?? []).join(";")]),
+    ];
+    downloadCSV(`users-${new Date().toISOString().slice(0,10)}.csv`, rows);
+  };
+
+  const exportAllData = () => {
+    // Users
+    const users_rows: (string | number)[][] = [
+      ["ID","Name","Email","Role","Status","Joined"],
+      ...users.map((u) => [u.id, u.name, u.email, u.role, u.status, u.joinedAt]),
+    ];
+    downloadCSV(`users-${new Date().toISOString().slice(0,10)}.csv`, users_rows);
+
+    // Courses
+    const courses_rows: (string | number)[][] = [
+      ["ID","Code","Name","Teacher","Students","Status","Sections","Items"],
+      ...courses.map((c) => [c.id, c.code, c.name, users.find((u) => u.id === c.teacherId)?.name ?? "", c.studentIds.length, c.status, c.sections.length, c.sections.reduce((n, s) => n + s.items.length, 0)]),
+    ];
+    downloadCSV(`courses-${new Date().toISOString().slice(0,10)}.csv`, courses_rows);
+
+    // Scores: every student × course progress + quiz avg
+    const scores_rows: (string | number)[][] = [["Student","Email","Course","Course Code","Progress %","Quiz Average %","Certificate Status","Cert Score"]];
+    for (const c of courses) {
+      const courseAssessments = assessments.filter((a) => a.courseId === c.id);
+      for (const sid of c.studentIds) {
+        const st = users.find((u) => u.id === sid);
+        if (!st) continue;
+        const pct = courseProgressPct(progress, sid, c);
+        const mySubs = submissions.filter((s) => s.studentId === sid && courseAssessments.some((a) => a.id === s.assessmentId));
+        let avg: number | string = "";
+        if (mySubs.length > 0) {
+          let total = 0;
+          for (const s of mySubs) { const a = courseAssessments.find((x) => x.id === s.assessmentId)!; total += submissionScore(a, s).pct; }
+          avg = Math.round(total / mySubs.length);
+        }
+        const cert = certificates.find((x) => x.studentId === sid && x.courseId === c.id);
+        scores_rows.push([st.name, st.email, c.name, c.code, pct, avg, cert?.status ?? "—", cert?.score ?? ""]);
+      }
+    }
+    downloadCSV(`scores-${new Date().toISOString().slice(0,10)}.csv`, scores_rows);
+
+    // Certificates
+    const cert_rows: (string | number)[][] = [
+      ["Certificate ID","Student","Email","Course","Score","Status","Requested","Issued","Suspicious Events"],
+      ...certificates.map((c) => {
+        const sus = (c.proctorLog ?? []).filter((e) => ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended"].includes(e.type)).length;
+        return [c.id, users.find((u) => u.id === c.studentId)?.name ?? "", users.find((u) => u.id === c.studentId)?.email ?? "", courses.find((x) => x.id === c.courseId)?.name ?? "", c.score, c.status, c.requestedAt, c.issuedAt ?? "", sus];
+      }),
+    ];
+    downloadCSV(`certificates-${new Date().toISOString().slice(0,10)}.csv`, cert_rows);
+
+    // Submissions
+    const sub_rows: (string | number)[][] = [
+      ["Submission ID","Student","Assessment","Course","Score %","Status","Submitted","Proctor Events"],
+      ...submissions.map((s) => {
+        const a = assessments.find((x) => x.id === s.assessmentId);
+        const max = a?.questions.reduce((sum, q) => sum + q.points, 0) ?? 0;
+        const earned = s.responses.reduce((sum, r) => sum + (r.awarded ?? 0), 0);
+        const pct = max ? Math.round((earned / max) * 100) : 0;
+        return [s.id, users.find((u) => u.id === s.studentId)?.name ?? "", a?.title ?? "", courses.find((x) => x.id === a?.courseId)?.name ?? "", pct, s.status, s.submittedAt, (s.proctorEvents ?? []).length];
+      }),
+    ];
+    downloadCSV(`submissions-${new Date().toISOString().slice(0,10)}.csv`, sub_rows);
+    toast.success("Exported 5 CSV files");
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="User Management"
         subtitle="Create, edit and assign learners and staff."
         actions={
-          <Button onClick={openCreate} className="gradient-primary text-primary-foreground border-0 glow">
-            <Plus className="mr-2 h-4 w-4" />Add User
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportUsersCsv}><Download className="mr-2 h-4 w-4" />Users CSV</Button>
+            <Button variant="outline" onClick={exportAllData}><Download className="mr-2 h-4 w-4" />Export All</Button>
+            <Button onClick={openCreate} className="gradient-primary text-primary-foreground border-0 glow">
+              <Plus className="mr-2 h-4 w-4" />Add User
+            </Button>
+          </div>
         }
       />
 

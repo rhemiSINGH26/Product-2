@@ -78,6 +78,8 @@ export interface Certificate {
   issuedAt?: string;
   teacherNote?: string;
   rejectionReason?: string;
+  /** Proctoring events captured during the final exam (if any). */
+  proctorLog?: Array<{ at: string; type: string; detail?: string }>;
 }
 
 export interface NotificationItem {
