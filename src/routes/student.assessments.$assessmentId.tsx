@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Clock, ShieldCheck, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Clock, ShieldCheck, AlertTriangle, CheckCircle2, Camera, Eye } from "lucide-react";
 import { PageHeader, GlassCard } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/lib/store";
 import { useData, maxScore, submissionScore, courseProgressPct } from "@/lib/data-store";
+import { useProctor } from "@/lib/proctor";
 import { LockKeyhole } from "lucide-react";
 
 export const Route = createFileRoute("/student/assessments/$assessmentId")({ component: QuizPage });
