@@ -1,0 +1,157 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Award, Download, Clock, XCircle, CheckCircle2 } from "lucide-react";
+import { PageHeader, GlassCard, StatCard } from "@/components/ui-kit";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { useAuth } from "@/lib/store";
+import { useData } from "@/lib/data-store";
+import type { Certificate } from "@/lib/mock-data";
+
+export const Route = createFileRoute("/student/certificates")({ component: StudentCertificates });
+
+function StudentCertificates() {
+  const { user } = useAuth();
+  const { certificates, courses, users } = useData();
+
+  const mine = useMemo(() => {
+    if (!user) return [];
+    return certificates.filter((c) => c.studentId === user.id);
+  }, [certificates, user]);
+
+  const approved = mine.filter((c) => c.status === "approved");
+  const pending = mine.filter((c) => c.status === "pending");
+  const rejected = mine.filter((c) => c.status === "rejected");
+
+  const courseName = (id: string) => courses.find((c) => c.id === id)?.name ?? "—";
+  const teacherName = (courseId: string) => {
+    const c = courses.find((x) => x.id === courseId);
+    return users.find((u) => u.id === c?.teacherId)?.name ?? "Instructor";
+  };
+
+  const [viewing, setViewing] = useState<Certificate | null>(null);
+
+  const handleDownload = (c: Certificate) => {
+    const html = renderCertHTML(c, user?.name ?? "Student", courseName(c.courseId), teacherName(c.courseId));
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `certificate-${c.id}.html`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast.success("Certificate downloaded");
+  };
+
+  return (
+    <div className="space-y-8">
+      <PageHeader title="My Certificates" subtitle="View, verify and download every certificate you've earned." />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Issued" value={approved.length} icon={CheckCircle2} accent />
+        <StatCard label="Pending" value={pending.length} icon={Clock} delay={0.05} />
+        <StatCard label="Rejected" value={rejected.length} icon={XCircle} delay={0.1} />
+      </div>
+
+      {mine.length === 0 ? (
+        <GlassCard className="text-center py-16">
+          <Award className="mx-auto h-10 w-10 text-muted-foreground/40 mb-3" />
+          <div className="font-semibold">No certificates yet</div>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+            Pass a course quiz and your instructor will recommend you for certification.
+          </p>
+        </GlassCard>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {mine.map((c) => (
+            <GlassCard key={c.id} className="flex flex-col">
+              <div className="flex items-start justify-between">
+                <div className="h-12 w-12 grid place-items-center rounded-2xl gradient-primary glow text-primary-foreground">
+                  <Award className="h-6 w-6" />
+                </div>
+                <Badge variant="outline" className={
+                  c.status === "approved" ? "border-success/40 text-success bg-success/10"
+                  : c.status === "rejected" ? "border-destructive/40 text-destructive bg-destructive/10"
+                  : "border-warning/40 text-warning bg-warning/10"
+                }>{c.status}</Badge>
+              </div>
+              <div className="mt-3 font-semibold leading-tight">{courseName(c.courseId)}</div>
+              <div className="mt-1 text-xs text-muted-foreground">Score {c.score}%</div>
+              <div className="mt-1 text-[10px] font-mono text-muted-foreground truncate">{c.id}</div>
+              {c.rejectionReason && (
+                <div className="mt-2 text-xs text-destructive">{c.rejectionReason}</div>
+              )}
+              {c.status === "approved" ? (
+                <div className="mt-4 flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1" onClick={() => setViewing(c)}>View</Button>
+                  <Button size="sm" className="flex-1 gradient-primary text-primary-foreground border-0" onClick={() => handleDownload(c)}>
+                    <Download className="h-3 w-3 mr-1.5" />Download
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-4 text-xs text-muted-foreground text-center py-2 rounded-lg bg-secondary/30">
+                  {c.status === "pending" ? "Awaiting admin approval" : "Request declined"}
+                </div>
+              )}
+            </GlassCard>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Certificate of Completion</DialogTitle>
+            <DialogDescription>Verify at /verify with the certificate ID.</DialogDescription>
+          </DialogHeader>
+          {viewing && (
+            <div className="rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-background to-secondary/30 p-10 text-center">
+              <Award className="mx-auto h-12 w-12 text-primary mb-4" />
+              <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground">iTech Academy</div>
+              <div className="mt-1 text-sm text-muted-foreground">Certificate of Completion</div>
+              <div className="mt-6 text-3xl font-bold gradient-text">{user?.name}</div>
+              <div className="mt-4 text-sm text-muted-foreground">has successfully completed</div>
+              <div className="mt-2 text-xl font-semibold">{courseName(viewing.courseId)}</div>
+              <div className="mt-6 flex justify-around text-xs text-muted-foreground">
+                <div><div className="font-bold text-foreground">{viewing.score}%</div>Final Score</div>
+                <div><div className="font-bold text-foreground">{viewing.issuedAt ?? "—"}</div>Issued</div>
+                <div><div className="font-bold text-foreground">{teacherName(viewing.courseId)}</div>Instructor</div>
+              </div>
+              <div className="mt-6 text-[10px] font-mono text-muted-foreground">ID: {viewing.id}</div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function renderCertHTML(c: Certificate, studentName: string, courseName: string, teacher: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Certificate ${c.id}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#0a0a0a;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}
+  .cert{background:linear-gradient(160deg,#1a1a1a,#0a0a0a);border:2px solid #dc2626;border-radius:20px;padding:64px;max-width:760px;text-align:center;box-shadow:0 30px 80px rgba(220,38,38,.25)}
+  .label{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:#a3a3a3}
+  .name{font-size:42px;font-weight:800;background:linear-gradient(90deg,#dc2626,#fff);-webkit-background-clip:text;background-clip:text;color:transparent;margin:24px 0 12px}
+  .course{font-size:22px;font-weight:600;margin-top:8px}
+  .meta{display:flex;justify-content:space-around;margin-top:32px;font-size:12px;color:#a3a3a3}
+  .meta b{display:block;color:#fff;font-size:14px;margin-bottom:4px}
+  .id{margin-top:32px;font-family:ui-monospace,monospace;font-size:10px;color:#737373}
+</style></head><body>
+<div class="cert">
+  <div class="label">iTech Academy</div>
+  <div class="label" style="margin-top:4px">Certificate of Completion</div>
+  <div class="name">${studentName}</div>
+  <div style="font-size:14px;color:#a3a3a3">has successfully completed</div>
+  <div class="course">${courseName}</div>
+  <div class="meta">
+    <div><b>${c.score}%</b>Final Score</div>
+    <div><b>${c.issuedAt ?? "—"}</b>Issued</div>
+    <div><b>${teacher}</b>Instructor</div>
+  </div>
+  <div class="id">ID: ${c.id}</div>
+</div></body></html>`;
+}

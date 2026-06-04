@@ -1,0 +1,94 @@
+// iTech Academy — types only. All data lives in data-store (localStorage).
+export type Role = "admin" | "teacher" | "student";
+export type ContentType =
+  | "video" | "pdf" | "reading" | "lab" | "link" | "download"
+  | "image" | "ppt" | "assessment";
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password?: string;
+  role: Role;
+  avatar?: string;
+  status: "active" | "inactive";
+  joinedAt: string;
+  courseIds?: string[];
+}
+
+export interface ContentItem {
+  id: string;
+  type: ContentType;
+  title: string;
+  url?: string;
+  fileName?: string;
+  assessmentId?: string;
+  duration?: number;
+  fileSize?: string;
+  body?: string;
+}
+
+export interface Section {
+  id: string;
+  title: string;
+  items: ContentItem[];
+}
+
+export interface Course {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  teacherId: string;
+  studentIds: string[];
+  thumbnail: string;
+  startDate: string;
+  endDate: string;
+  accessMode: "lifetime" | "limited";
+  status: "active" | "draft" | "archived";
+  sections: Section[];
+}
+
+export interface Assessment {
+  id: string;
+  courseId: string;
+  title: string;
+  timeLimit: number;
+  passingScore: number;
+  attempts: number;
+  questionCount: number;
+  proctored: boolean;
+  isFinal: boolean;
+}
+
+export interface Certificate {
+  id: string;
+  studentId: string;
+  courseId: string;
+  score: number;
+  status: "pending" | "approved" | "rejected";
+  requestedAt: string;
+  issuedAt?: string;
+  teacherNote?: string;
+  rejectionReason?: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;          // target user
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+  link?: string;
+}
+
+export interface Message {
+  id: string;
+  fromId: string;
+  toId: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
+}
