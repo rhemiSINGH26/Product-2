@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Award, Download, Clock, XCircle, CheckCircle2 } from "lucide-react";
+import { Award, Download, Clock, XCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { PageHeader, GlassCard, StatCard } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +55,16 @@ function StudentCertificates() {
         <StatCard label="Pending" value={pending.length} icon={Clock} delay={0.05} />
         <StatCard label="Rejected" value={rejected.length} icon={XCircle} delay={0.1} />
       </div>
+
+      {pending.length > 0 && (
+        <GlassCard className="flex items-start gap-3 border-warning/40 bg-warning/10">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+          <div>
+            <div className="font-semibold">Verification in progress</div>
+            <p className="mt-1 text-sm text-muted-foreground">{pending.length} certificate request{pending.length === 1 ? " is" : "s are"} awaiting admin approval.</p>
+          </div>
+        </GlassCard>
+      )}
 
       {mine.length === 0 ? (
         <GlassCard className="text-center py-16">
