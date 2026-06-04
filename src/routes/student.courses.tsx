@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { BookOpen, Play, Search, CalendarDays, Infinity as InfinityIcon } from "lucide-react";
 import { PageHeader, GlassCard } from "@/components/ui-kit";
@@ -15,6 +15,9 @@ function StudentCourses() {
   const { user } = useAuth();
   const { courses, progress, users } = useData();
   const [q, setQ] = useState("");
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  if (pathname !== "/student/courses") return <Outlet />;
 
   const my = useMemo(() => {
     if (!user) return [];
