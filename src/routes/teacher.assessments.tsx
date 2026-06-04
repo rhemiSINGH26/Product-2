@@ -272,7 +272,7 @@ function AssessmentEditor({ assessment, onBack, courseName }: { assessment: Stor
     } else {
       options = []; correctIndex = -1;
     }
-    const payload = { type: qDraft.type, prompt: qDraft.prompt.trim(), options, correctIndex, points: Number(qDraft.points) || 1 };
+    const payload = { type: qDraft.type, prompt: qDraft.prompt.trim(), options, correctIndex, points: Number(qDraft.points) || 1, imageUrl: qDraft.imageUrl || undefined };
     if (editingQ) { updateQuestion(assessment.id, editingQ.id, payload); toast.success("Question updated."); }
     else { addQuestion(assessment.id, payload); toast.success("Question added."); }
     setQDialog(false);
@@ -322,6 +322,7 @@ function AssessmentEditor({ assessment, onBack, courseName }: { assessment: Stor
                     <Badge variant="outline" className="border-border text-xs">{q.points} pts</Badge>
                   </div>
                   <div className="mt-2 font-medium">{q.prompt}</div>
+                  {q.imageUrl && <img src={q.imageUrl} alt="Question reference" className="mt-3 max-h-52 rounded-lg border border-border object-contain bg-secondary/30" />}
                   {q.type !== "short" && (
                     <div className="mt-2 space-y-1">
                       {q.options.map((o, oi) => (
@@ -385,6 +386,14 @@ function AssessmentEditor({ assessment, onBack, courseName }: { assessment: Stor
             <div className="space-y-2">
               <Label htmlFor="qprompt">Prompt</Label>
               <Textarea id="qprompt" rows={2} value={qDraft.prompt} onChange={(e) => setQDraft({ ...qDraft, prompt: e.target.value })} placeholder="Ask the question..." />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="qimage">Question image</Label>
+              <div className="flex gap-2">
+                <Input id="qimage" value={qDraft.imageUrl} onChange={(e) => setQDraft({ ...qDraft, imageUrl: e.target.value })} placeholder="Image URL or upload" />
+                <FileUploadButton accept="image/*" label="Upload" onUpload={(dataUrl) => setQDraft((d) => ({ ...d, imageUrl: dataUrl }))} />
+              </div>
+              {qDraft.imageUrl && <img src={qDraft.imageUrl} alt="Question preview" className="max-h-40 rounded-lg border border-border object-contain bg-secondary/30" />}
             </div>
 
             {qDraft.type === "mcq" && (
