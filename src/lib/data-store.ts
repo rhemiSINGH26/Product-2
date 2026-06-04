@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { HARDCODED_ACCOUNTS } from "./store";
+import { HARDCODED_ACCOUNTS } from "./accounts";
 import type {
   User, Role, Course, Section, ContentItem, ContentType,
   Assessment, Certificate, NotificationItem, Message,
