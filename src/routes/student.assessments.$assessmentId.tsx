@@ -19,7 +19,7 @@ function QuizPage() {
   const { assessmentId } = useParams({ from: "/student/assessments/$assessmentId" });
   const { user } = useAuth();
   const nav = useNavigate();
-  const { assessments, courses, submissions, submitQuiz } = useData();
+  const { assessments, courses, submissions, submitQuiz, progress } = useData();
 
   const a = assessments.find((x) => x.id === assessmentId);
   const course = a ? courses.find((c) => c.id === a.courseId) : null;
