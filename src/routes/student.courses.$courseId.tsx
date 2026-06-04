@@ -61,7 +61,8 @@ function CourseLearning() {
       </div>
     );
   }
-  if (isCourseExpired(course)) {
+  if (isCourseExpired(course, user.id)) {
+    const access = studentAccessFor(course, user.id);
     return (
       <div className="space-y-4">
         <Button asChild variant="ghost"><Link to="/student/courses"><ArrowLeft className="mr-2 h-4 w-4" />Back</Link></Button>
@@ -70,7 +71,7 @@ function CourseLearning() {
             <LockKeyhole className="h-7 w-7" />
           </div>
           <h2 className="text-xl font-semibold">Course access expired</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Your access ended on {course.endDate || "the scheduled end date"}.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Your access ended on {access.endDate || "the scheduled end date"}.</p>
           <div className="mt-5 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" /> Contact your instructor to extend access.
           </div>
