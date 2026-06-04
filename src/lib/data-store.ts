@@ -45,6 +45,44 @@ const uid = (p: string) => `${p}-${Date.now().toString(36)}-${(counter++).toStri
 // Seed users = only the 3 hardcoded login accounts (stripped of password)
 const seedUsers: User[] = HARDCODED_ACCOUNTS.map(({ password: _p, ...u }) => u);
 
+// Seed one demo course so the student can immediately open something
+const seedCourses: Course[] = [
+  {
+    id: "course-welcome",
+    name: "Welcome to iTech Academy",
+    code: "ITECH-101",
+    description: "A short orientation course covering how to navigate the academy, watch lessons and take quizzes.",
+    teacherId: "teacher-root",
+    studentIds: ["student-root"],
+    thumbnail: "📘",
+    startDate: "2025-01-01",
+    endDate: "2099-12-31",
+    accessMode: "lifetime",
+    status: "active",
+    sections: [
+      {
+        id: "sec-welcome-1",
+        title: "Getting Started",
+        items: [
+          {
+            id: "itm-welcome-intro",
+            type: "reading",
+            title: "Welcome — read this first",
+            body: "Welcome to iTech Academy!\n\nUse the sidebar to navigate. Click any item on the right to open it here. Mark items complete as you finish them — your progress is tracked automatically.",
+          },
+          {
+            id: "itm-welcome-video",
+            type: "video",
+            title: "Platform tour (3 min)",
+            url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            duration: 3,
+          },
+        ],
+      },
+    ],
+  },
+];
+
 interface DataState {
   users: User[];
   courses: Course[];
