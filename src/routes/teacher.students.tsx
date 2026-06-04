@@ -76,9 +76,18 @@ function TeacherStudents() {
     setMsgTo(null); setMsgSubject(""); setMsgBody("");
   };
 
+  const exportCsv = () => {
+    const head = ["Student","Email","Course","Course Code","Progress %","Quiz Average %","Submissions"];
+    const data: (string | number)[][] = [head, ...rows.map((r) => [r.student.name, r.student.email, r.courseName, myCourses.find((c) => c.id === r.courseId)?.code ?? "", r.pct, r.avgQuiz ?? "", submissions.filter((s) => s.studentId === r.student.id && assessments.some((a) => a.id === s.assessmentId && a.courseId === r.courseId)).length])];
+    downloadCSV(`student-progress-${new Date().toISOString().slice(0,10)}.csv`, data);
+    toast.success("Exported");
+  };
+
   return (
     <div className="space-y-8">
-      <PageHeader title="Student Progress" subtitle="Track learners and message them directly." />
+      <PageHeader title="Student Progress" subtitle="Track learners and message them directly." actions={
+        <Button variant="outline" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Export CSV</Button>
+      } />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Unique Students" value={totalStudents} icon={Users} />
