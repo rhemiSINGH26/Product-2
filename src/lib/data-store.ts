@@ -181,12 +181,12 @@ function ensureSeedCourses(courses: unknown): Course[] {
 const syncQuestionCount = (a: StoreAssessment): StoreAssessment => ({ ...a, questionCount: a.questions.length });
 
 // Auto-issue a certificate request if the student passed and doesn't already have one
-function maybeRequestCert(get: () => DataState, studentId: string, courseId: string, score: number) {
+function maybeRequestCert(get: () => DataState, studentId: string, courseId: string, score: number, proctorLog?: ProctorEventRecord[]) {
   const existing = get().certificates.find(
     (c) => c.studentId === studentId && c.courseId === courseId && c.status !== "rejected",
   );
   if (existing) return;
-  get().requestCertificate(studentId, courseId, score, "Auto-generated from passing quiz score.");
+  get().requestCertificate(studentId, courseId, score, "Auto-generated from passing final exam.", proctorLog);
 }
 
 export const useData = create<DataState>()(
