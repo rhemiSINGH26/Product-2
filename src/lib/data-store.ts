@@ -496,6 +496,21 @@ export const useData = create<DataState>()(
     {
       name: "itech-data-v2",
       version: 4,
+      merge: (persisted: any, current) => {
+        const saved = persisted && typeof persisted === "object" ? persisted : {};
+        return {
+          ...current,
+          ...saved,
+          users: Array.isArray(saved.users) ? saved.users : current.users,
+          courses: ensureSeedCourses(saved.courses ?? current.courses),
+          assessments: Array.isArray(saved.assessments) ? saved.assessments : current.assessments,
+          submissions: Array.isArray(saved.submissions) ? saved.submissions : current.submissions,
+          certificates: Array.isArray(saved.certificates) ? saved.certificates : current.certificates,
+          notifications: Array.isArray(saved.notifications) ? saved.notifications : current.notifications,
+          messages: Array.isArray(saved.messages) ? saved.messages : current.messages,
+          progress: saved.progress && typeof saved.progress === "object" ? saved.progress : current.progress,
+        };
+      },
       migrate: (persisted: any, version: number) => {
         if (!persisted) return persisted;
         persisted.users = Array.isArray(persisted.users) ? persisted.users : seedUsers;
