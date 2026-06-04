@@ -3,7 +3,7 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, BookOpen, BarChart3, Award, FileEdit, ClipboardCheck,
   GraduationCap, MessageSquare, Bell, Search, ChevronLeft, LogOut, Settings, FileCheck,
-  Inbox,
+  Inbox, ShieldCheck,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/lib/store";
