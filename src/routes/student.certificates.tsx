@@ -103,7 +103,7 @@ function StudentCertificates() {
                 <div className="mt-4 flex gap-2">
                   <Button size="sm" variant="outline" className="flex-1" onClick={() => setViewing(c)}>View</Button>
                   <Button size="sm" className="flex-1 gradient-primary text-primary-foreground border-0" onClick={() => handleDownload(c)}>
-                    <Download className="h-3 w-3 mr-1.5" />Download
+                    <Download className="h-3 w-3 mr-1.5" />Print
                   </Button>
                 </div>
               ) : (
