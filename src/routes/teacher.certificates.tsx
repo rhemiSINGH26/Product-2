@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Award, Send, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Award, Send, Clock, CheckCircle2, XCircle, ShieldCheck, Printer, Eye, Download } from "lucide-react";
 import { PageHeader, GlassCard, StatCard } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,9 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/store";
 import { useData, courseProgressPct, submissionScore } from "@/lib/data-store";
+import { openPrintableCertificate } from "@/lib/certificate";
+import { downloadCSV } from "@/lib/exports";
+import type { Certificate } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/teacher/certificates")({ component: TeacherCertificates });
 
