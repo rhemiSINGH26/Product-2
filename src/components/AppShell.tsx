@@ -27,6 +27,7 @@ const navByRole = {
     { to: "/admin/courses", label: "Courses", icon: BookOpen },
     { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { to: "/admin/certificates", label: "Certificates", icon: Award },
+    { to: "/verify", label: "Verify Certificate", icon: ShieldCheck },
   ],
   teacher: [
     { to: "/teacher", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -34,6 +35,7 @@ const navByRole = {
     { to: "/teacher/assessments", label: "Assessments", icon: ClipboardCheck },
     { to: "/teacher/students", label: "Student Progress", icon: Users },
     { to: "/teacher/certificates", label: "Certificate Requests", icon: FileCheck },
+    { to: "/verify", label: "Verify Certificate", icon: ShieldCheck },
     { to: "/teacher/messages", label: "Messages", icon: MessageSquare },
   ],
   student: [
