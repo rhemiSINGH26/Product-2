@@ -118,6 +118,11 @@ function ContentBuilder() {
     };
     if (editingItemId) { updateItem(course.id, itemSectionId, editingItemId, payload); toast.success("Content updated."); }
     else { addItem(course.id, itemSectionId, payload); toast.success("Content added."); }
+    // Rebind the assessment to this course so it lives in the right place.
+    if (itemDraft.type === "assessment" && itemDraft.assessmentId) {
+      const linked = assessments.find((a) => a.id === itemDraft.assessmentId);
+      if (linked && linked.courseId !== course.id) updateAssessment(linked.id, { courseId: course.id });
+    }
     setItemDialog(false);
   };
 
