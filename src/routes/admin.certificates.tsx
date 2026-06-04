@@ -24,6 +24,9 @@ function AdminCertificates() {
   const [q, setQ] = useState("");
   const [rejecting, setRejecting] = useState<Certificate | null>(null);
   const [reason, setReason] = useState("");
+  const [viewingLog, setViewingLog] = useState<Certificate | null>(null);
+  const [verifyId, setVerifyId] = useState("");
+  const [verifyResult, setVerifyResult] = useState<null | { ok: boolean; cert?: Certificate }>(null);
 
   const userName = (id: string) => users.find((u) => u.id === id)?.name ?? id;
   const userEmail = (id: string) => users.find((u) => u.id === id)?.email ?? "—";
