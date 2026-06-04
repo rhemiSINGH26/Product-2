@@ -29,6 +29,7 @@ import {
   type StoreAssessment, type Question, type QuestionType, type Submission,
 } from "@/lib/data-store";
 import { useAuth } from "@/lib/store";
+import { FileUploadButton } from "@/components/FileUploadButton";
 
 export const Route = createFileRoute("/teacher/assessments")({ component: AssessmentsPage });
 
@@ -231,8 +232,8 @@ function AssessmentsPage() {
 }
 
 // ---------------- Editor ----------------
-type QDraft = { type: QuestionType; prompt: string; options: string[]; correctIndex: number; points: number };
-const blankQ: QDraft = { type: "mcq", prompt: "", options: ["", "", "", ""], correctIndex: 0, points: 4 };
+type QDraft = { type: QuestionType; prompt: string; options: string[]; correctIndex: number; points: number; imageUrl: string };
+const blankQ: QDraft = { type: "mcq", prompt: "", options: ["", "", "", ""], correctIndex: 0, points: 4, imageUrl: "" };
 
 function AssessmentEditor({ assessment, onBack, courseName }: { assessment: StoreAssessment; onBack: () => void; courseName: string }) {
   const { addQuestion, updateQuestion, deleteQuestion } = useData();
@@ -247,7 +248,7 @@ function AssessmentEditor({ assessment, onBack, courseName }: { assessment: Stor
     setQDraft({
       type: q.type, prompt: q.prompt,
       options: q.type === "short" ? ["", "", "", ""] : [...q.options, "", "", "", ""].slice(0, Math.max(2, q.options.length)),
-      correctIndex: q.correctIndex, points: q.points,
+      correctIndex: q.correctIndex, points: q.points, imageUrl: q.imageUrl ?? "",
     });
     setQDialog(true);
   };
