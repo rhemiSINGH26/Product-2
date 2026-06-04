@@ -104,8 +104,10 @@ function CourseManagement() {
         return;
       }
     }
+    const { studentAccess, ...rest } = draft;
     const payload = {
-      ...draft,
+      ...rest,
+      studentAccess,
       // legacy fields kept for backward compat
       startDate: "",
       endDate: "",
