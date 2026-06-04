@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/lib/store";
-import { useData, maxScore, submissionScore } from "@/lib/data-store";
+import { useData, maxScore, submissionScore, courseProgressPct } from "@/lib/data-store";
+import { LockKeyhole } from "lucide-react";
 
 export const Route = createFileRoute("/student/assessments/$assessmentId")({ component: QuizPage });
 
