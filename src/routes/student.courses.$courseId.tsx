@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/store";
-import { useData, courseProgressPct, isCourseExpired } from "@/lib/data-store";
+import { useData, courseProgressPct, isCourseExpired, type StoreAssessment } from "@/lib/data-store";
 import type { ContentItem, ContentType } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { ClipboardCheck } from "lucide-react";
@@ -171,8 +171,12 @@ function CourseLearning() {
   );
 }
 
-function ContentViewer({ item, completed, onToggleComplete }: { item: ContentItem; completed: boolean; onToggleComplete: () => void }) {
+function ContentViewer({ item, assessments, completed, onToggleComplete }: { item: ContentItem; assessments: StoreAssessment[]; completed: boolean; onToggleComplete: () => void }) {
   const M = typeMeta[item.type];
+  const linkedAssessment = item.assessmentId ? assessments.find((a) => a.id === item.assessmentId) : null;
+  const officeUrl = item.url && item.type === "ppt" && !item.url.startsWith("data:")
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.url)}`
+    : null;
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
@@ -200,6 +204,36 @@ function ContentViewer({ item, completed, onToggleComplete }: { item: ContentIte
 
       {item.type === "pdf" && item.url && (
         <iframe src={item.url} className="w-full h-[600px] rounded-xl border border-border bg-white" title={item.title} />
+      )}
+
+      {item.type === "image" && item.url && (
+        <img src={item.url} alt={item.title} className="max-h-[640px] w-full rounded-xl border border-border object-contain bg-secondary/30" />
+      )}
+
+      {item.type === "ppt" && item.url && (
+        officeUrl ? (
+          <iframe src={officeUrl} className="w-full h-[600px] rounded-xl border border-border bg-white" title={item.title} />
+        ) : (
+          <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm hover:border-primary/40 transition">
+            <Presentation className="h-4 w-4 text-primary" />Open slides
+          </a>
+        )
+      )}
+
+      {item.type === "assessment" && (
+        linkedAssessment ? (
+          <div className="rounded-xl border border-border bg-secondary/40 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-semibold">{linkedAssessment.title}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{linkedAssessment.questions.length} questions · {linkedAssessment.timeLimit} min · Pass {linkedAssessment.passingScore}%</div>
+              </div>
+              <Button asChild className="gradient-primary text-primary-foreground border-0">
+                <Link to="/student/assessments/$assessmentId" params={{ assessmentId: linkedAssessment.id }}>Start assessment</Link>
+              </Button>
+            </div>
+          </div>
+        ) : <div className="text-sm text-muted-foreground">Assessment not linked.</div>
       )}
 
       {item.type === "reading" && (
