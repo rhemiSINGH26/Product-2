@@ -48,7 +48,7 @@ const fileSizeLabel = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(bytes 
 function ContentBuilder() {
   const { user } = useAuth();
   const {
-    courses, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem,
+    courses, assessments, addSection, updateSection, deleteSection, addItem, updateItem, deleteItem,
   } = useData();
 
   const myCourses = useMemo(
@@ -93,7 +93,7 @@ function ContentBuilder() {
     setItemSectionId(sectionId); setEditingItemId(item.id);
     setItemDraft({
       type: item.type, title: item.title, url: item.url ?? "",
-      duration: item.duration ? String(item.duration) : "", fileSize: item.fileSize ?? "", body: item.body ?? "",
+      duration: item.duration ? String(item.duration) : "", fileSize: item.fileSize ?? "", body: item.body ?? "", assessmentId: item.assessmentId ?? "",
     });
     setItemDialog(true);
   };
@@ -107,6 +107,7 @@ function ContentBuilder() {
       duration: itemDraft.duration ? Number(itemDraft.duration) : undefined,
       fileSize: itemDraft.fileSize.trim() || undefined,
       body: itemDraft.body.trim() || undefined,
+      assessmentId: itemDraft.type === "assessment" ? itemDraft.assessmentId || undefined : undefined,
     };
     if (editingItemId) { updateItem(course.id, itemSectionId, editingItemId, payload); toast.success("Content updated."); }
     else { addItem(course.id, itemSectionId, payload); toast.success("Content added."); }
