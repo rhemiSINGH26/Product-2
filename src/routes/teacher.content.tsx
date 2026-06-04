@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useData, type ContentType, type ContentItem } from "@/lib/data-store";
 import { useAuth } from "@/lib/store";
+import { FileUploadButton } from "@/components/FileUploadButton";
 
 export const Route = createFileRoute("/teacher/content")({ component: ContentBuilder });
 
@@ -39,8 +40,10 @@ const typeMeta: Record<ContentType, { icon: typeof Video; label: string; color: 
   assessment: { icon: ClipboardList, label: "Assessment", color: "text-primary" },
 };
 
-type ItemDraft = { type: ContentType; title: string; url: string; duration: string; fileSize: string; body: string };
-const emptyItem: ItemDraft = { type: "video", title: "", url: "", duration: "", fileSize: "", body: "" };
+type ItemDraft = { type: ContentType; title: string; url: string; duration: string; fileSize: string; body: string; assessmentId: string };
+const emptyItem: ItemDraft = { type: "video", title: "", url: "", duration: "", fileSize: "", body: "", assessmentId: "" };
+
+const fileSizeLabel = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(bytes > 1024 * 1024 ? 1 : 2)} MB`;
 
 function ContentBuilder() {
   const { user } = useAuth();
