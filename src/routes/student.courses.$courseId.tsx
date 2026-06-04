@@ -149,21 +149,55 @@ function CourseLearning() {
 
           {(() => {
             const courseAssessments = assessments.filter((a) => a.courseId === course.id);
-            if (courseAssessments.length === 0) return null;
+            const regular = courseAssessments.filter((a) => !a.isFinal);
+            const finals = courseAssessments.filter((a) => a.isFinal);
+            const courseComplete = pct >= 100 && allItems.length > 0;
             return (
-              <GlassCard className="p-3">
-                <div className="px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">Assessments</div>
-                <div className="space-y-0.5">
-                  {courseAssessments.map((a) => (
-                    <Link key={a.id} to="/student/assessments/$assessmentId" params={{ assessmentId: a.id }}
-                      className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-secondary/40 transition">
-                      <ClipboardCheck className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="flex-1 truncate">{a.title}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
-                    </Link>
-                  ))}
-                </div>
-              </GlassCard>
+              <>
+                {regular.length > 0 && (
+                  <GlassCard className="p-3">
+                    <div className="px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">Assessments</div>
+                    <div className="space-y-0.5">
+                      {regular.map((a) => (
+                        <Link key={a.id} to="/student/assessments/$assessmentId" params={{ assessmentId: a.id }}
+                          className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-secondary/40 transition">
+                          <ClipboardCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="flex-1 truncate">{a.title}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </GlassCard>
+                )}
+                {finals.length > 0 && (
+                  <GlassCard className="p-3 border-primary/30">
+                    <div className="px-2 py-1.5 text-xs uppercase tracking-wider text-primary">Final Test</div>
+                    {!courseComplete && (
+                      <div className="mx-2 mb-2 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-2 py-1.5 text-[11px] text-warning">
+                        <LockKeyhole className="h-3 w-3" />Complete all course content ({pct}%) to unlock.
+                      </div>
+                    )}
+                    <div className="space-y-0.5">
+                      {finals.map((a) => (
+                        courseComplete ? (
+                          <Link key={a.id} to="/student/assessments/$assessmentId" params={{ assessmentId: a.id }}
+                            className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-secondary/40 transition">
+                            <ClipboardCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <span className="flex-1 truncate">{a.title}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
+                          </Link>
+                        ) : (
+                          <div key={a.id} className="w-full flex items-center gap-2 rounded-lg px-2 py-2 text-sm opacity-50 cursor-not-allowed">
+                            <LockKeyhole className="h-3.5 w-3.5 shrink-0" />
+                            <span className="flex-1 truncate">{a.title}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{a.timeLimit}m</span>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  </GlassCard>
+                )}
+              </>
             );
           })()}
         </div>
