@@ -24,7 +24,8 @@ import {
   Tabs, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { useData, type User, type Role } from "@/lib/data-store";
+import { useData, courseProgressPct, submissionScore, type User, type Role } from "@/lib/data-store";
+import { downloadCSV } from "@/lib/exports";
 import { Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users")({ component: UserManagement });
