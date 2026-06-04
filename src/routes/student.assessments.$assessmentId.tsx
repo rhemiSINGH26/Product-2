@@ -213,6 +213,8 @@ function QuizPage() {
   const secs = remaining % 60;
   const lowTime = remaining < 60;
 
+  const susCount = proctor.events.filter((e) => ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended"].includes(e.type)).length;
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur pb-3 -mt-6 pt-6">
@@ -220,7 +222,7 @@ function QuizPage() {
           <div className="flex-1 min-w-0">
             <div className="font-semibold truncate">{a.title}</div>
             <Progress value={(answered / Math.max(1, a.questions.length)) * 100} className="h-1 mt-1" />
-            <div className="text-xs text-muted-foreground mt-1">{answered}/{a.questions.length} answered</div>
+            <div className="text-xs text-muted-foreground mt-1">{answered}/{a.questions.length} answered · <span className={susCount > 0 ? "text-warning" : ""}><Eye className="inline h-3 w-3 -mt-0.5" /> {susCount} flag{susCount === 1 ? "" : "s"}</span></div>
           </div>
           <div className={`flex items-center gap-1.5 font-mono text-sm font-bold ${lowTime ? "text-destructive animate-pulse" : "text-primary"}`}>
             <Clock className="h-4 w-4" />
@@ -228,6 +230,16 @@ function QuizPage() {
           </div>
         </GlassCard>
       </div>
+
+      {requiresCamera && (
+        <div className="fixed bottom-4 right-4 z-50 w-44 rounded-xl overflow-hidden border-2 border-primary/50 bg-black shadow-2xl">
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/90 text-primary-foreground text-[10px] font-semibold uppercase tracking-wider">
+            <Camera className="h-3 w-3" /> Proctor camera
+          </div>
+          <video ref={proctor.videoRef} muted playsInline className="w-full h-32 object-cover bg-black" />
+          {proctor.cameraError && <div className="px-2 py-1 text-[10px] text-destructive bg-destructive/10">{proctor.cameraError}</div>}
+        </div>
+      )}
 
       {a.questions.map((q, i) => (
         <GlassCard key={q.id} className="space-y-3">
