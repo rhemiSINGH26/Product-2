@@ -301,10 +301,17 @@ function ContentBuilder() {
                 <Select value={itemDraft.assessmentId} onValueChange={(v) => setItemDraft({ ...itemDraft, assessmentId: v })}>
                   <SelectTrigger><SelectValue placeholder="Choose an assessment" /></SelectTrigger>
                   <SelectContent>
-                    {courseAssessments.map((a) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}
+                    {pickableAssessments.map((a) => {
+                      const c = courses.find((x) => x.id === a.courseId);
+                      return (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.title}{a.isFinal ? " · Final" : ""}{c && c.id !== courseId ? ` (from ${c.name})` : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
-                {courseAssessments.length === 0 && <p className="text-xs text-muted-foreground">Create an assessment for this course first.</p>}
+                {pickableAssessments.length === 0 && <p className="text-xs text-muted-foreground">Create an assessment first from the Assessments page.</p>}
               </div>
             ) : (
               <div className="space-y-2">
