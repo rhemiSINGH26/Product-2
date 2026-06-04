@@ -37,14 +37,18 @@ function StudentCertificates() {
   const [viewing, setViewing] = useState<Certificate | null>(null);
 
   const handleDownload = (c: Certificate) => {
-    const html = renderCertHTML(c, user?.name ?? "Student", courseName(c.courseId), teacherName(c.courseId));
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `certificate-${c.id}.html`;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-    toast.success("Certificate downloaded");
+    openPrintableCertificate({
+      id: c.id,
+      studentName: user?.name ?? "Student",
+      studentEmail: user?.email,
+      courseName: courseName(c.courseId),
+      courseCode: courses.find((x) => x.id === c.courseId)?.code,
+      teacherName: teacherName(c.courseId),
+      score: c.score,
+      issuedAt: c.issuedAt,
+      requestedAt: c.requestedAt,
+    });
+    toast.success("Opened printable certificate");
   };
 
   return (
