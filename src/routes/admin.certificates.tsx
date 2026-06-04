@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Award, CheckCircle2, XCircle, Clock, Search } from "lucide-react";
+import { Award, CheckCircle2, XCircle, Clock, Search, ShieldCheck, Printer, Download, Eye } from "lucide-react";
 import { PageHeader, GlassCard, StatCard } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useData } from "@/lib/data-store";
+import { openPrintableCertificate } from "@/lib/certificate";
+import { downloadCSV } from "@/lib/exports";
 import type { Certificate } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/admin/certificates")({ component: AdminCertificates });
