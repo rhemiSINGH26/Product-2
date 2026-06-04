@@ -476,7 +476,7 @@ export const useData = create<DataState>()(
     }),
     {
       name: "itech-data-v2",
-      version: 3,
+      version: 4,
       migrate: (persisted: any, version: number) => {
         if (!persisted) return persisted;
         if (version < 3) {
@@ -488,6 +488,12 @@ export const useData = create<DataState>()(
             ...a,
             isFinal: a.isFinal ?? false,
           }));
+        }
+        if (version < 4) {
+          // Inject seed course if user has none, so opening a course works out of the box
+          if (!Array.isArray(persisted.courses) || persisted.courses.length === 0) {
+            persisted.courses = seedCourses;
+          }
         }
         return persisted;
       },
