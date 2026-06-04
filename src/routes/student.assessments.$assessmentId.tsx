@@ -101,7 +101,8 @@ function QuizPage() {
 
   function handleSubmit(auto = false) {
     if (!user || !a) return;
-    const id = submitQuiz(a.id, user.id, answers);
+    proctor.log("submitted", auto ? "timeout" : "manual");
+    const id = submitQuiz(a.id, user.id, answers, proctor.events);
     if (auto) toast.warning("Time's up — auto-submitted");
     else toast.success("Submitted!");
     setDone(id);
