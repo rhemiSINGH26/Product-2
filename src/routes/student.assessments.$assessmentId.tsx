@@ -173,11 +173,18 @@ function QuizPage() {
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Attempts left</div>
             </div>
           </div>
-          {a.proctored && (
-            <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 border border-primary/30 rounded-lg p-3">
-              <ShieldCheck className="h-4 w-4" />This quiz is proctored. Do not switch tabs once started.
+          <div className="flex items-start gap-2 text-sm text-primary bg-primary/10 border border-primary/30 rounded-lg p-3">
+            <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-semibold">Proctoring is enabled</div>
+              <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-foreground/80">
+                <li>The quiz will open in <strong>fullscreen</strong>. Exiting fullscreen is logged.</li>
+                <li>Tab switches, copy/paste, right-click and shortcut keys are recorded.</li>
+                {requiresCamera && <li><strong>Camera access is required</strong> for this final exam. A live preview will be visible while you take the test.</li>}
+                <li>All suspicious activity is shared with your instructor and admin with the certificate request.</li>
+              </ul>
             </div>
-          )}
+          </div>
           <div className="text-sm text-muted-foreground">
             Worth {maxScore(a)} points across {a.questions.length} questions. Once started the timer cannot be paused.
           </div>
