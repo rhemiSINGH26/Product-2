@@ -13,7 +13,7 @@ export const users = pgTable("users", {
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  lastActive: timestamp("last_active").notNull().defaultNow(),
+  lastActive: timestamp("last_active"),
 });
 
 // Courses table

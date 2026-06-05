@@ -66,6 +66,46 @@ async function seed() {
       console.log("✓ Created default student user");
     }
 
+    // Create idle student user if it doesn't exist (inactive for 10 days)
+    const idleStudentExists = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.email, "idle-student@itech.com"),
+    });
+
+    if (!idleStudentExists) {
+      const studentPasswordHash = await hashPassword("student123");
+      await db.insert(users).values({
+        id: "student-idle",
+        name: "Idle Learner",
+        email: "idle-student@itech.com",
+        passwordHash: studentPasswordHash,
+        role: "student",
+        status: "active",
+        joinedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+        lastActive: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
+      });
+      console.log("✓ Created idle student user");
+    }
+
+    // Create never logged in student user if it doesn't exist (lastActive: null)
+    const neverStudentExists = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.email, "never-student@itech.com"),
+    });
+
+    if (!neverStudentExists) {
+      const studentPasswordHash = await hashPassword("student123");
+      await db.insert(users).values({
+        id: "student-never",
+        name: "New Learner",
+        email: "never-student@itech.com",
+        passwordHash: studentPasswordHash,
+        role: "student",
+        status: "active",
+        joinedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        lastActive: null,
+      });
+      console.log("✓ Created never logged in student user");
+    }
+
     console.log("✓ Seed completed successfully!");
   } catch (error) {
     console.error("Seed failed:", error);

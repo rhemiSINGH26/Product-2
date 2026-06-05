@@ -42,7 +42,7 @@ export async function contentRoute(request: Request): Promise<Response> {
         role: u.role,
         status: u.status,
         joinedAt: u.joinedAt.toISOString().slice(0, 10),
-        lastActive: u.lastActive ? u.lastActive.toISOString() : new Date().toISOString(),
+        lastActive: u.lastActive ? u.lastActive.toISOString() : null,
         avatar: u.avatar,
         courseIds: allEnrollments.filter((e) => e.studentId === u.id).map((e) => e.courseId),
       }));
@@ -66,7 +66,7 @@ export async function contentRoute(request: Request): Promise<Response> {
         role: body.role || "student",
         status: body.status || "active",
         joinedAt: body.joinedAt ? new Date(body.joinedAt) : now,
-        lastActive: now,
+        lastActive: null,
       });
       const created = await db.query.users.findFirst({ where: eq(users.id, id) });
       return new Response(JSON.stringify({ user: created }), {

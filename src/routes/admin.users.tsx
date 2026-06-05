@@ -305,7 +305,7 @@ function UserManagement() {
             ) : (
               <>
                 <div className="text-xs text-muted-foreground pb-1">
-                  Showing {filtered.length} user{filtered.length === 1 ? "" : "s"} inactive for more than 7 days
+                  Showing {filtered.length} user{filtered.length === 1 ? "" : "s"} inactive for 7+ days or who have never logged in
                 </div>
                 {filtered.map((u, i) => (
                   <motion.div
@@ -337,9 +337,11 @@ function UserManagement() {
                     <div className="text-right shrink-0">
                       <div className="flex items-center gap-1.5 text-warning text-sm font-semibold">
                         <Clock className="h-3.5 w-3.5" />
-                        Idle {formatIdleDuration(u)}
+                        {u.lastActive ? `Idle ${formatIdleDuration(u)}` : "Never logged in"}
                       </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">Last seen: {formatLastActive(u)}</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        {u.lastActive ? `Last seen: ${formatLastActive(u)}` : "Account created but never used"}
+                      </div>
                     </div>
 
                     {/* Actions */}

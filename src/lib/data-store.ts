@@ -50,7 +50,8 @@ export function getLastActiveDate(user: User): Date | null {
 
 export function isUserInactive(user: User, thresholdDays = INACTIVITY_THRESHOLD_DAYS): boolean {
   const lastActive = getLastActiveDate(user);
-  if (!lastActive) return false;
+  // No lastActive = never logged in = idle
+  if (!lastActive) return true;
   const cutoff = Date.now() - thresholdDays * 24 * 60 * 60 * 1000;
   return lastActive.getTime() < cutoff;
 }
@@ -72,7 +73,7 @@ export function formatLastActive(user: User): string {
 
 export function formatIdleDuration(user: User): string {
   const lastActive = getLastActiveDate(user);
-  if (!lastActive) return "—";
+  if (!lastActive) return "Never logged in";
   const diffDays = Math.floor((Date.now() - lastActive.getTime()) / 86_400_000);
   if (diffDays < 1) return "< 1 day";
   return `${diffDays} day${diffDays === 1 ? "" : "s"}`;
@@ -244,7 +245,7 @@ export const useData = create<DataState>()((set, get) => ({
             set((s) => ({ users: [ { ...user, courseIds: [] }, ...s.users ] }));
           } catch (err) {
             console.error('addUser error', err);
-            set((s) => ({ users: [{ ...u, id: uid("u"), lastActive: u.lastActive ?? new Date().toISOString(), courseIds: [] }, ...s.users] }));
+            set((s) => ({ users: [{ ...u, id: uid("u"), lastActive: u.lastActive ?? null, courseIds: [] }, ...s.users] }));
           }
         })();
       },
