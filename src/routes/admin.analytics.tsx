@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { Users, BookOpen, ClipboardCheck, Award, GraduationCap, TrendingUp } from "lucide-react";
+import { Users, BookOpen, ClipboardCheck, Award, GraduationCap, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { PageHeader, GlassCard, StatCard } from "@/components/ui-kit";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useData, courseProgressPct } from "@/lib/data-store";
+import { useData, courseProgressPct, isUserInactive, formatLastActive, formatIdleDuration } from "@/lib/data-store";
 
 export const Route = createFileRoute("/admin/analytics")({ component: AdminAnalytics });
+
+const roleColors: Record<string, string> = {
+  admin: "border-primary/40 text-primary bg-primary/10",
+  teacher: "border-warning/40 text-warning bg-warning/10",
+  student: "border-success/40 text-success bg-success/10",
+};
 
 function AdminAnalytics() {
   const { users, courses, assessments, submissions, certificates, progress } = useData();
@@ -40,6 +46,15 @@ function AdminAnalytics() {
     courseCount: courses.filter((c) => c.teacherId === t.id).length,
     studentCount: courses.filter((c) => c.teacherId === t.id).reduce((n, c) => n + c.studentIds.length, 0),
   })).sort((a, b) => b.studentCount - a.studentCount);
+
+  const idleUsers = useMemo(
+    () => [...users].filter(isUserInactive).sort((a, b) => {
+      const aDate = a.lastActive ? new Date(a.lastActive).getTime() : 0;
+      const bDate = b.lastActive ? new Date(b.lastActive).getTime() : 0;
+      return aDate - bDate; // longest idle first
+    }),
+    [users],
+  );
 
   return (
     <div className="space-y-8">
@@ -104,6 +119,63 @@ function AdminAnalytics() {
           )}
         </GlassCard>
       </div>
+
+      {/* Idle Users Section */}
+      <GlassCard className="border-warning/20">
+        <div className="flex items-center gap-2 mb-5">
+          <div className="h-8 w-8 grid place-items-center rounded-lg bg-warning/15 text-warning">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Idle Users</h3>
+            <p className="text-xs text-muted-foreground">Users inactive for more than 7 days — consider sending a re-engagement message.</p>
+          </div>
+          <Badge variant="outline" className="ml-auto border-warning/40 text-warning bg-warning/10">
+            {idleUsers.length} idle
+          </Badge>
+        </div>
+
+        {idleUsers.length === 0 ? (
+          <div className="text-center py-10">
+            <Clock className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+            <p className="text-sm text-muted-foreground">All users are active. 🎉</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {idleUsers.map((u) => (
+              <div
+                key={u.id}
+                className="flex flex-wrap items-center gap-3 rounded-xl bg-warning/5 border border-warning/15 px-4 py-3"
+              >
+                {/* Avatar */}
+                <div className="h-9 w-9 grid place-items-center rounded-xl bg-warning/15 text-warning text-xs font-bold shrink-0">
+                  {u.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm">{u.name}</div>
+                  <div className="text-xs text-muted-foreground">{u.email}</div>
+                </div>
+
+                {/* Role badge */}
+                <Badge variant="outline" className={`capitalize text-[10px] py-0 shrink-0 ${roleColors[u.role]}`}>
+                  {u.role}
+                </Badge>
+
+                {/* Idle duration */}
+                <div className="text-right shrink-0">
+                  <div className="flex items-center gap-1 text-warning text-xs font-semibold">
+                    <Clock className="h-3 w-3" />
+                    {formatIdleDuration(u)} idle
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">{formatLastActive(u)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
     </div>
   );
 }

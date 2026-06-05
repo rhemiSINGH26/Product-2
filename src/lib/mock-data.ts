@@ -1,4 +1,4 @@
-// iTech Academy — types only. All data lives in data-store (localStorage).
+// iTech Academy — types only. Authentication and data now rely on backend services.
 export type Role = "admin" | "teacher" | "student";
 export type ContentType =
   | "video" | "pdf" | "reading" | "lab" | "link" | "download"
@@ -13,6 +13,7 @@ export interface User {
   avatar?: string;
   status: "active" | "inactive";
   joinedAt: string;
+  lastActive?: string;
   courseIds?: string[];
 }
 

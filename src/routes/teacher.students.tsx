@@ -14,7 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/store";
-import { useData, courseProgressPct, submissionScore } from "@/lib/data-store";
+import { useData, courseProgressPct, submissionScore, isUserInactive, formatLastActive } from "@/lib/data-store";
 import { downloadCSV } from "@/lib/exports";
 
 export const Route = createFileRoute("/teacher/students")({ component: TeacherStudents });
@@ -60,6 +60,7 @@ function TeacherStudents() {
   }, [filteredCourses, users, progress, submissions, assessments, q]);
 
   const totalStudents = new Set(rows.map((r) => r.student.id)).size;
+  const inactiveStudents = new Set(rows.filter((r) => isUserInactive(r.student)).map((r) => r.student.id)).size;
 
   // message dialog
   const [msgTo, setMsgTo] = useState<{ id: string; name: string } | null>(null);
@@ -91,7 +92,7 @@ function TeacherStudents() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Unique Students" value={totalStudents} icon={Users} />
-        <StatCard label="Enrolments" value={rows.length} icon={Users} delay={0.05} />
+        <StatCard label="Idle learners" value={inactiveStudents} icon={Users} accent delay={0.05} />
         <StatCard label="My Courses" value={myCourses.length} icon={Users} delay={0.1} />
       </div>
 
@@ -123,7 +124,13 @@ function TeacherStudents() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium">{r.student.name}</div>
-                <div className="text-xs text-muted-foreground truncate">{r.student.email} · {r.courseName}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {r.student.email} · {r.courseName}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  Last active: {formatLastActive(r.student)}
+                  {isUserInactive(r.student) && <span className="ml-2 text-warning">(Idle)</span>}
+                </div>
               </div>
               <div className="w-40 shrink-0">
                 <div className="flex justify-between text-xs mb-1"><span className="text-muted-foreground">Progress</span><span>{r.pct}%</span></div>

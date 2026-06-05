@@ -25,6 +25,7 @@ import {
 import { useData, type ContentType, type ContentItem } from "@/lib/data-store";
 import { useAuth } from "@/lib/store";
 import { FileUploadButton } from "@/components/FileUploadButton";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 export const Route = createFileRoute("/teacher/content")({ component: ContentBuilder });
 
@@ -269,7 +270,7 @@ function ContentBuilder() {
 
       {/* Item dialog */}
       <Dialog open={itemDialog} onOpenChange={setItemDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingItemId ? "Edit content" : "Add content"}</DialogTitle>
             <DialogDescription>Choose a content type and fill in the details.</DialogDescription>
@@ -290,10 +291,19 @@ function ContentBuilder() {
               <Label htmlFor="ititle">Title</Label>
               <Input id="ititle" value={itemDraft.title} onChange={(e) => setItemDraft({ ...itemDraft, title: e.target.value })} placeholder="e.g. Welcome & Overview" />
             </div>
-            {itemDraft.type === "reading" ? (
+            {(itemDraft.type === "reading" || itemDraft.type === "lab") ? (
               <div className="space-y-2">
-                <Label htmlFor="ibody">Reading content</Label>
-                <Textarea id="ibody" rows={4} value={itemDraft.body} onChange={(e) => setItemDraft({ ...itemDraft, body: e.target.value })} placeholder="Write the reading text..." />
+                <Label htmlFor="ibody">
+                  {itemDraft.type === "reading" ? "Reading content" : "Lab instructions"}
+                </Label>
+                <RichTextEditor
+                  value={itemDraft.body}
+                  onChange={(html) => setItemDraft({ ...itemDraft, body: html })}
+                  placeholder={itemDraft.type === "reading"
+                    ? "Write the reading material here — use bold, headings, lists, colours…"
+                    : "Write the lab instructions, steps, and notes here…"}
+                  minHeight={260}
+                />
               </div>
             ) : itemDraft.type === "assessment" ? (
               <div className="space-y-2">

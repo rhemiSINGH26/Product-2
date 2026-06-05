@@ -11,7 +11,7 @@ export function FileUploadButton({
 }: {
   accept: string;
   label?: string;
-  onUpload: (dataUrl: string, file: File) => void;
+  onUpload: (url: string, file: File) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -29,16 +29,19 @@ export function FileUploadButton({
     }
     setBusy(true);
     try {
-      const dataUrl: string = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(String(r.result));
-        r.onerror = () => rej(r.error);
-        r.readAsDataURL(file);
-      });
-      onUpload(dataUrl, file);
+      const fd = new FormData();
+      fd.append("file", file);
+      // optionally include ownerId here if available in your app
+      const res = await fetch("/api/files", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const json = await res.json();
+      const url = json.url as string;
+      if (!url) throw new Error("No url returned");
+      onUpload(url, file);
       toast.success(`Uploaded ${file.name}`);
-    } catch {
-      toast.error("Failed to read file");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to upload file");
     } finally {
       setBusy(false);
       if (ref.current) ref.current.value = "";

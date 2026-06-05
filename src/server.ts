@@ -1,4 +1,7 @@
 import "./lib/error-capture";
+import { authApiRoutes } from "./lib/api/routes/auth";
+import { filesRoute } from "./lib/api/routes/files";
+import { contentRoute } from "./lib/api/routes/content";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -40,6 +43,30 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      // first, auth API routes (exact path matches)
+      const routeHandlers = authApiRoutes[url.pathname];
+      if (routeHandlers) {
+        const routeHandler = routeHandlers[request.method];
+        if (!routeHandler) {
+          return new Response(null, {
+            status: 405,
+            headers: { Allow: Object.keys(routeHandlers).join(", ") },
+          });
+        }
+        return await routeHandler(request);
+      }
+
+      // files API (single endpoint /api/files handles POST upload and GET download?id=...)
+      if (url.pathname === "/api/files") {
+        return await filesRoute(request);
+      }
+
+      // content API (courses, sections, content items)
+      if (url.pathname.startsWith("/api/")) {
+        return await contentRoute(request);
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

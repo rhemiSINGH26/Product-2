@@ -58,7 +58,7 @@ function AdminCertificates() {
     setRejecting(null); setReason("");
   };
 
-  const susTypes = new Set(["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","multiple_faces"]);
+  const susTypes = new Set(["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","camera_motion","multiple_faces"]);
   const susCount = (c: Certificate) => (c.proctorLog ?? []).filter((e) => susTypes.has(e.type)).length;
 
   const handlePrint = (c: Certificate) => {

@@ -1,13 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useAuth, HARDCODED_ACCOUNTS } from "@/lib/store";
+import { useAuth } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/Logo";
-import { Shield, GraduationCap, BookOpen, ArrowRight, Lock, Mail, AlertCircle } from "lucide-react";
-import type { Role } from "@/lib/mock-data";
+import { ArrowRight, Lock, Mail, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
@@ -20,15 +19,9 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-const roleIcons: Record<Role, any> = { admin: Shield, teacher: BookOpen, student: GraduationCap };
-const roleDesc: Record<Role, string> = {
-  admin: "Full platform control",
-  teacher: "Create content & grade",
-  student: "Learn & earn certificates",
-};
 
 function LoginPage() {
-  const { user, login, register } = useAuth();
+  const { user, login, register, initializeSession } = useAuth();
   const nav = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
@@ -38,15 +31,19 @@ function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    initializeSession();
+  }, [initializeSession]);
+
+  useEffect(() => {
     if (user) nav({ to: `/${user.role}` as any });
   }, [user, nav]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (mode === "signup") {
       if (pwd !== confirm) { setError("Passwords do not match."); return; }
-      const res = register({ name, email, password: pwd });
+      const res = await register({ name, email, password: pwd });
       if (!res.ok) { setError(res.error); toast.error(res.error); return; }
       toast.success("Account created — welcome!");
       nav({ to: "/student" });
@@ -56,7 +53,7 @@ function LoginPage() {
       setError("Email and password are required.");
       return;
     }
-    const res = login(email, pwd);
+    const res = await login(email, pwd);
     if (!res.ok) {
       setError(res.error);
       toast.error(res.error);
@@ -65,8 +62,6 @@ function LoginPage() {
     toast.success("Welcome back!");
     nav({ to: `/${res.role}` as any });
   };
-
-  const fillDemo = (e: string, p: string) => { setEmail(e); setPwd(p); setError(null); };
 
   return (
     <div className="min-h-screen relative grid lg:grid-cols-2 overflow-hidden">
@@ -172,30 +167,11 @@ function LoginPage() {
             </Button>
           </form>
 
-          {mode === "login" && <div className="pt-2">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Demo accounts</div>
-            <div className="grid grid-cols-3 gap-2">
-              {HARDCODED_ACCOUNTS.map((a) => {
-                const Icon = roleIcons[a.role];
-                return (
-                  <button
-                    key={a.role}
-                    type="button"
-                    onClick={() => fillDemo(a.email, a.password)}
-                    className="group rounded-xl border border-border p-3 text-left hover:border-primary/40 bg-secondary/40 transition"
-                    title={`${a.email} / ${a.password}`}
-                  >
-                    <Icon className="h-4 w-4 mb-2 text-muted-foreground group-hover:text-primary" />
-                    <div className="text-xs font-semibold capitalize">{a.role}</div>
-                    <div className="text-[10px] text-muted-foreground line-clamp-1">{roleDesc[a.role]}</div>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              Tap a card to autofill credentials.
+          {mode === "login" && (
+            <p className="text-sm text-muted-foreground">
+              Use your registered account credentials to sign in.
             </p>
-          </div>}
+          )}
         </motion.div>
       </div>
     </div>

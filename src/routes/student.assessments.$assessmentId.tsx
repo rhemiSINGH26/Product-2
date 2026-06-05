@@ -34,17 +34,26 @@ function QuizPage() {
   const enrolled = !!(user && course?.studentIds.includes(user.id));
 
   const [started, setStarted] = useState(false);
+  const [startRequested, setStartRequested] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(0);
   const [done, setDone] = useState<string | null>(null);
 
   const requiresCamera = !!(a && a.isFinal);
-  const proctor = useProctor({ enabled: started && !done, camera: requiresCamera });
+  const proctor = useProctor({ enabled: startRequested && !done, camera: requiresCamera });
+  const proctorReady = proctor.fullscreenActive && (!requiresCamera || proctor.cameraReady);
 
   useEffect(() => {
     if (!started || done) return;
     setRemaining(a ? a.timeLimit * 60 : 0);
   }, [started, a, done]);
+
+  useEffect(() => {
+    if (!startRequested || done || started) return;
+    if (proctorReady) {
+      setStarted(true);
+    }
+  }, [proctorReady, startRequested, done, started]);
 
   useEffect(() => {
     if (!started || done) return;
@@ -101,8 +110,9 @@ function QuizPage() {
 
   function handleSubmit(auto = false) {
     if (!user || !a) return;
-    proctor.log("submitted", auto ? "timeout" : "manual");
-    const id = submitQuiz(a.id, user.id, answers, proctor.events);
+    const finalEvent = { at: new Date().toISOString(), type: "submitted" as const, detail: auto ? "timeout" : "manual" };
+    const finalEventsList = [...proctor.events, finalEvent];
+    const id = submitQuiz(a.id, user.id, answers, finalEventsList);
     if (auto) toast.warning("Time's up — auto-submitted");
     else toast.success("Submitted!");
     setDone(id);
@@ -180,7 +190,10 @@ function QuizPage() {
               <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-foreground/80">
                 <li>The quiz will open in <strong>fullscreen</strong>. Exiting fullscreen is logged.</li>
                 <li>Tab switches, copy/paste, right-click and shortcut keys are recorded.</li>
-                {requiresCamera && <li><strong>Camera access is required</strong> for this final exam. A live preview will be visible while you take the test.</li>}
+                {requiresCamera && <>
+                  <li><strong>Camera access is required</strong> for this final exam. A live preview will be visible while you take the test.</li>
+                  <li>Camera movement is monitored and logged as part of the proctor report.</li>
+                </>}
                 <li>All suspicious activity is shared with your instructor and admin with the certificate request.</li>
               </ul>
             </div>
@@ -192,8 +205,20 @@ function QuizPage() {
             <div className="text-sm text-destructive">This quiz has no questions yet — ask your instructor.</div>
           ) : attemptsLeft === 0 ? (
             <div className="text-sm text-destructive">No attempts remaining.</div>
+          ) : startRequested ? (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border bg-secondary/80 p-4 text-sm">
+                <div className="font-semibold mb-2">Preparing secure assessment...</div>
+                <p>{proctor.fullscreenActive ? "Fullscreen enabled." : "Waiting for fullscreen permission..."}</p>
+                {requiresCamera && <p>{proctor.cameraReady ? "Camera access granted." : "Waiting for camera permission..."}</p>}
+                {proctor.fullscreenError && <p className="text-destructive">Fullscreen error: {proctor.fullscreenError}</p>}
+                {proctor.cameraError && <p className="text-destructive">Camera error: {proctor.cameraError}</p>}
+                <p className="text-xs text-muted-foreground">You must allow fullscreen for all assessments and camera access for final exams before the test begins.</p>
+              </div>
+              <Button variant="outline" onClick={() => setStartRequested(false)} className="w-full">Cancel</Button>
+            </div>
           ) : (
-            <Button onClick={() => setStarted(true)} className="w-full gradient-primary text-primary-foreground border-0 glow">
+            <Button onClick={() => setStartRequested(true)} className="w-full gradient-primary text-primary-foreground border-0 glow">
               Start quiz
             </Button>
           )}
@@ -208,12 +233,33 @@ function QuizPage() {
   }
 
   // Taking view
+  if (!started && startRequested) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <GlassCard className="space-y-4 text-center py-12">
+          <div className="text-lg font-semibold">Preparing secure exam</div>
+          <div className="text-sm text-muted-foreground">
+            Please allow fullscreen to start the assessment.
+            {requiresCamera && " Camera access is also required for this final test."}
+          </div>
+          <div className="text-left text-sm text-muted-foreground space-y-2">
+            <div>{proctor.fullscreenActive ? "✔ Fullscreen enabled" : "• Waiting for fullscreen permission"}</div>
+            {requiresCamera && <div>{proctor.cameraReady ? "✔ Camera enabled" : "• Waiting for camera permission"}</div>}
+            {proctor.fullscreenError && <div className="text-destructive">Fullscreen error: {proctor.fullscreenError}</div>}
+            {proctor.cameraError && <div className="text-destructive">Camera error: {proctor.cameraError}</div>}
+          </div>
+          <Button variant="outline" onClick={() => setStartRequested(false)}>Cancel</Button>
+        </GlassCard>
+      </div>
+    );
+  }
+
   const answered = a.questions.filter((q) => (answers[q.id] ?? "").length > 0).length;
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
   const lowTime = remaining < 60;
 
-  const susCount = proctor.events.filter((e) => ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended"].includes(e.type)).length;
+  const susCount = proctor.events.filter((e) => ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","camera_motion"].includes(e.type)).length;
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -236,7 +282,7 @@ function QuizPage() {
           <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/90 text-primary-foreground text-[10px] font-semibold uppercase tracking-wider">
             <Camera className="h-3 w-3" /> Proctor camera
           </div>
-          <video ref={proctor.videoRef} muted playsInline className="w-full h-32 object-cover bg-black" />
+          <video ref={proctor.videoRef} autoPlay muted playsInline className="w-full h-32 object-cover bg-black" />
           {proctor.cameraError && <div className="px-2 py-1 text-[10px] text-destructive bg-destructive/10">{proctor.cameraError}</div>}
         </div>
       )}

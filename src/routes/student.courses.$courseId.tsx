@@ -238,7 +238,12 @@ function ContentViewer({ item, assessments, completed, onToggleComplete }: { ite
       })()}
 
       {item.type === "pdf" && item.url && (
-        <iframe src={item.url} className="w-full h-[600px] rounded-xl border border-border bg-white" title={item.title} />
+        <div className="space-y-3">
+          <iframe src={item.url} className="w-full h-[600px] rounded-xl border border-border bg-white" title={item.title} />
+          <a href={item.url} download target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm hover:border-primary/40 transition">
+            <Download className="h-4 w-4 text-primary" />Download PDF
+          </a>
+        </div>
       )}
 
       {item.type === "image" && item.url && (

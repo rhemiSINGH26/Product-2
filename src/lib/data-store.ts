@@ -1,6 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { HARDCODED_ACCOUNTS } from "./accounts";
 import type {
   User, Role, Course, Section, ContentItem, ContentType,
   Assessment, Certificate, NotificationItem, Message,
@@ -42,11 +40,49 @@ export interface Submission {
   proctorEvents?: ProctorEventRecord[];
 }
 
+export const INACTIVITY_THRESHOLD_DAYS = 7;
+
+export function getLastActiveDate(user: User): Date | null {
+  if (!user.lastActive) return null;
+  const date = new Date(user.lastActive);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function isUserInactive(user: User, thresholdDays = INACTIVITY_THRESHOLD_DAYS): boolean {
+  const lastActive = getLastActiveDate(user);
+  if (!lastActive) return false;
+  const cutoff = Date.now() - thresholdDays * 24 * 60 * 60 * 1000;
+  return lastActive.getTime() < cutoff;
+}
+
+export function formatLastActive(user: User): string {
+  const lastActive = getLastActiveDate(user);
+  if (!lastActive) return "Never";
+  const diffMs = Date.now() - lastActive.getTime();
+  const diffMinutes = Math.floor(diffMs / 60_000);
+  if (diffMinutes < 2) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths} month${diffMonths === 1 ? "" : "s"} ago`;
+}
+
+export function formatIdleDuration(user: User): string {
+  const lastActive = getLastActiveDate(user);
+  if (!lastActive) return "—";
+  const diffDays = Math.floor((Date.now() - lastActive.getTime()) / 86_400_000);
+  if (diffDays < 1) return "< 1 day";
+  return `${diffDays} day${diffDays === 1 ? "" : "s"}`;
+}
+
 let counter = 0;
 const uid = (p: string) => `${p}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
-// Seed users = only the 3 hardcoded login accounts (stripped of password)
-const seedUsers: User[] = (HARDCODED_ACCOUNTS ?? []).map(({ password: _p, ...u }) => u);
+// Seed users = start with an empty user list; auth is handled through the backend.
+const seedUsers: User[] = [];
 
 // Seed one demo course so the student can immediately open something
 const seedCourses: Course[] = [
@@ -189,134 +225,301 @@ function maybeRequestCert(get: () => DataState, studentId: string, courseId: str
   get().requestCertificate(studentId, courseId, score, "Auto-generated from passing final exam.", proctorLog);
 }
 
-export const useData = create<DataState>()(
-  persist(
-    (set, get) => ({
+export const useData = create<DataState>()((set, get) => ({
       ...initial,
 
-      addUser: (u) => set((s) => ({ users: [{ ...u, id: uid("u") }, ...s.users] })),
+      addUser: (u) => {
+        (async () => {
+          try {
+            const id = uid("u");
+            const payload = { ...u, id };
+            const resp = await fetch('/api/users', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (!resp.ok) throw new Error('Failed to create user');
+            const json = await resp.json();
+            const user = json.user;
+            set((s) => ({ users: [ { ...user, courseIds: [] }, ...s.users ] }));
+          } catch (err) {
+            console.error('addUser error', err);
+            set((s) => ({ users: [{ ...u, id: uid("u"), lastActive: u.lastActive ?? new Date().toISOString(), courseIds: [] }, ...s.users] }));
+          }
+        })();
+      },
       addUserRaw: (u) => set((s) => ({ users: [u, ...s.users.filter((x) => x.id !== u.id)] })),
-      updateUser: (id, patch) =>
-        set((s) => ({ users: s.users.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
-      deleteUser: (id) =>
-        set((s) => ({
-          users: s.users.filter((x) => x.id !== id),
-          courses: s.courses.map((c) => ({
-            ...c,
-            studentIds: c.studentIds.filter((sid) => sid !== id),
-            teacherId: c.teacherId === id ? "" : c.teacherId,
-          })),
-        })),
+      updateUser: (id, patch) => {
+        (async () => {
+          try {
+            const resp = await fetch(`/api/users/${encodeURIComponent(id)}`, {
+              method: 'PUT',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(patch)
+            });
+            if (!resp.ok) throw new Error('Failed to update user');
+            const json = await resp.json();
+            const user = json.user;
+            set((s) => ({ users: s.users.map((x) => (x.id === id ? { ...x, ...user } : x)) }));
+          } catch (err) {
+            console.error('updateUser error', err);
+            set((s) => ({ users: s.users.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+          }
+        })();
+      },
+      deleteUser: (id) => {
+        (async () => {
+          try {
+            await fetch(`/api/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            set((s) => ({
+              users: s.users.filter((x) => x.id !== id),
+              courses: s.courses.map((c) => ({
+                ...c,
+                studentIds: c.studentIds.filter((sid) => sid !== id),
+                teacherId: c.teacherId === id ? "" : c.teacherId,
+              })),
+            }));
+          } catch (err) {
+            console.error('deleteUser error', err);
+            set((s) => ({
+              users: s.users.filter((x) => x.id !== id),
+              courses: s.courses.map((c) => ({
+                ...c,
+                studentIds: c.studentIds.filter((sid) => sid !== id),
+                teacherId: c.teacherId === id ? "" : c.teacherId,
+              })),
+            }));
+          }
+        })();
+      },
 
-      addCourse: (c) =>
-        set((s) => ({
-          courses: [{ ...c, id: uid("c"), sections: [], studentIds: c.studentIds ?? [] }, ...s.courses],
-        })),
-      updateCourse: (id, patch) =>
-        set((s) => ({ courses: s.courses.map((c) => (c.id === id ? { ...c, ...patch } : c)) })),
-      deleteCourse: (id) =>
-        set((s) => ({
-          courses: s.courses.filter((c) => c.id !== id),
-          assessments: s.assessments.filter((a) => a.courseId !== id),
-          certificates: s.certificates.filter((cert) => cert.courseId !== id),
-        })),
+      addCourse: (c) => {
+        (async () => {
+          try {
+            const resp = await fetch('/api/courses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(c) });
+            if (!resp.ok) throw new Error('Failed to create course');
+            const json = await resp.json();
+            const course = json.course;
+            set((s) => ({ courses: [ { ...course, sections: course.sections ?? [] }, ...s.courses ] }));
+          } catch (err) {
+            console.error('addCourse error', err);
+            // fallback to local change
+            set((s) => ({ courses: [{ ...c, id: uid('c'), sections: [], studentIds: c.studentIds ?? [] }, ...s.courses] }));
+          }
+        })();
+      },
+      updateCourse: (id, patch) => {
+        (async () => {
+          try {
+            const resp = await fetch(`/api/courses/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) });
+            if (!resp.ok) throw new Error('Failed to update course');
+            const json = await resp.json();
+            const course = json.course;
+            set((s) => ({ courses: s.courses.map((c) => (c.id === id ? { ...c, ...course } : c)) }));
+          } catch (err) {
+            console.error('updateCourse error', err);
+            set((s) => ({ courses: s.courses.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+          }
+        })();
+      },
+      deleteCourse: (id) => {
+        (async () => {
+          try {
+            await fetch(`/api/courses/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            set((s) => ({
+              courses: s.courses.filter((c) => c.id !== id),
+              assessments: s.assessments.filter((a) => a.courseId !== id),
+              certificates: s.certificates.filter((cert) => cert.courseId !== id),
+            }));
+          } catch (err) {
+            console.error('deleteCourse error', err);
+            set((s) => ({
+              courses: s.courses.filter((c) => c.id !== id),
+              assessments: s.assessments.filter((a) => a.courseId !== id),
+              certificates: s.certificates.filter((cert) => cert.courseId !== id),
+            }));
+          }
+        })();
+      },
 
-      addSection: (courseId, title) =>
-        set((s) => ({
-          courses: s.courses.map((c) =>
-            c.id === courseId ? { ...c, sections: [...c.sections, { id: uid("sec"), title, items: [] }] } : c,
-          ),
-        })),
-      updateSection: (courseId, sectionId, title) =>
-        set((s) => ({
-          courses: s.courses.map((c) =>
-            c.id === courseId
-              ? { ...c, sections: c.sections.map((sec) => (sec.id === sectionId ? { ...sec, title } : sec)) }
-              : c,
-          ),
-        })),
-      deleteSection: (courseId, sectionId) =>
-        set((s) => ({
-          courses: s.courses.map((c) =>
-            c.id === courseId ? { ...c, sections: c.sections.filter((sec) => sec.id !== sectionId) } : c,
-          ),
-        })),
-      addItem: (courseId, sectionId, item) =>
-        set((s) => ({
-          courses: s.courses.map((c) =>
-            c.id === courseId
-              ? {
-                  ...c,
-                  sections: c.sections.map((sec) =>
-                    sec.id === sectionId ? { ...sec, items: [...sec.items, { ...item, id: uid("itm") }] } : sec,
-                  ),
-                }
-              : c,
-          ),
-        })),
-      updateItem: (courseId, sectionId, itemId, patch) =>
-        set((s) => ({
-          courses: s.courses.map((c) =>
-            c.id === courseId
-              ? {
-                  ...c,
-                  sections: c.sections.map((sec) =>
-                    sec.id === sectionId
-                      ? { ...sec, items: sec.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)) }
-                      : sec,
-                  ),
-                }
-              : c,
-          ),
-        })),
-      deleteItem: (courseId, sectionId, itemId) =>
-        set((s) => ({
-          courses: s.courses.map((c) =>
-            c.id === courseId
-              ? {
-                  ...c,
-                  sections: c.sections.map((sec) =>
-                    sec.id === sectionId ? { ...sec, items: sec.items.filter((it) => it.id !== itemId) } : sec,
-                  ),
-                }
-              : c,
-          ),
-        })),
+      addSection: (courseId, title) => {
+        (async () => {
+          try {
+            const resp = await fetch('/api/sections', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ courseId, title }) });
+            const json = await resp.json();
+            const sec = json.section;
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: [...c.sections, { ...sec, items: [] }] } : c) }));
+          } catch (err) {
+            console.error('addSection error', err);
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: [...c.sections, { id: uid('sec'), title, items: [] }] } : c) }));
+          }
+        })();
+      },
+      updateSection: (courseId, sectionId, title) => {
+        (async () => {
+          try {
+            const resp = await fetch(`/api/sections/${encodeURIComponent(sectionId)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title }) });
+            const json = await resp.json();
+            const sec = json.section;
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec2) => sec2.id === sectionId ? { ...sec2, ...sec } : sec2) } : c) }));
+          } catch (err) {
+            console.error('updateSection error', err);
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec) => sec.id === sectionId ? { ...sec, title } : sec) } : c) }));
+          }
+        })();
+      },
+      deleteSection: (courseId, sectionId) => {
+        (async () => {
+          try {
+            await fetch(`/api/sections/${encodeURIComponent(sectionId)}`, { method: 'DELETE' });
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.filter((sec) => sec.id !== sectionId) } : c) }));
+          } catch (err) {
+            console.error('deleteSection error', err);
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.filter((sec) => sec.id !== sectionId) } : c) }));
+          }
+        })();
+      },
+      addItem: (courseId, sectionId, item) => {
+        (async () => {
+          try {
+            const payload = { sectionId, type: item.type, title: item.title, body: item.body, url: item.url, fileName: item.fileName, duration: item.duration, fileSize: item.fileSize, assessmentId: item.assessmentId };
+            const resp = await fetch('/api/content-items', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+            const json = await resp.json();
+            const it = json.item;
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec) => sec.id === sectionId ? { ...sec, items: [...sec.items, it] } : sec) } : c) }));
+          } catch (err) {
+            console.error('addItem error', err);
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec) => sec.id === sectionId ? { ...sec, items: [...sec.items, { ...item, id: uid('itm') }] } : sec) } : c) }));
+          }
+        })();
+      },
+      updateItem: (courseId, sectionId, itemId, patch) => {
+        (async () => {
+          try {
+            const resp = await fetch(`/api/content-items/${encodeURIComponent(itemId)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) });
+            const json = await resp.json();
+            const it = json.item;
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec) => sec.id === sectionId ? { ...sec, items: sec.items.map((i) => i.id === itemId ? it : i) } : sec) } : c) }));
+          } catch (err) {
+            console.error('updateItem error', err);
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec) => sec.id === sectionId ? { ...sec, items: sec.items.map((i) => i.id === itemId ? { ...i, ...patch } : i) } : sec) } : c) }));
+          }
+        })();
+      },
+      deleteItem: (courseId, sectionId, itemId) => {
+        (async () => {
+          try {
+            await fetch(`/api/content-items/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec) => sec.id === sectionId ? { ...sec, items: sec.items.filter((it) => it.id !== itemId) } : sec) } : c) }));
+          } catch (err) {
+            console.error('deleteItem error', err);
+            set((s) => ({ courses: s.courses.map((c) => c.id === courseId ? { ...c, sections: c.sections.map((sec) => sec.id === sectionId ? { ...sec, items: sec.items.filter((it) => it.id !== itemId) } : sec) } : c) }));
+          }
+        })();
+      },
 
       addAssessment: (a) => {
         const id = uid("a");
+        (async () => {
+          try {
+            await fetch("/api/assessments", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ ...a, id }),
+            });
+          } catch (err) {
+            console.error("addAssessment error", err);
+          }
+        })();
         set((s) => ({ assessments: [{ ...a, id, questions: [], questionCount: 0 }, ...s.assessments] }));
         return id;
       },
-      updateAssessment: (id, patch) =>
-        set((s) => ({ assessments: s.assessments.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
-      deleteAssessment: (id) =>
+      updateAssessment: (id, patch) => {
+        (async () => {
+          try {
+            await fetch(`/api/assessments/${encodeURIComponent(id)}`, {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(patch),
+            });
+          } catch (err) {
+            console.error("updateAssessment error", err);
+          }
+        })();
+        set((s) => ({ assessments: s.assessments.map((a) => (a.id === id ? { ...a, ...patch } : a)) }));
+      },
+      deleteAssessment: (id) => {
+        (async () => {
+          try {
+            await fetch(`/api/assessments/${encodeURIComponent(id)}`, {
+              method: "DELETE",
+            });
+          } catch (err) {
+            console.error("deleteAssessment error", err);
+          }
+        })();
         set((s) => ({
           assessments: s.assessments.filter((a) => a.id !== id),
           submissions: s.submissions.filter((sub) => sub.assessmentId !== id),
-        })),
-      addQuestion: (assessmentId, q) =>
+        }));
+      },
+      addQuestion: (assessmentId, q) => {
+        const id = uid("q");
+        (async () => {
+          try {
+            await fetch("/api/questions", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ ...q, id, assessmentId }),
+            });
+          } catch (err) {
+            console.error("addQuestion error", err);
+          }
+        })();
         set((s) => ({
           assessments: s.assessments.map((a) =>
-            a.id === assessmentId ? syncQuestionCount({ ...a, questions: [...a.questions, { ...q, id: uid("q") }] }) : a,
+            a.id === assessmentId ? syncQuestionCount({ ...a, questions: [...a.questions, { ...q, id }] }) : a,
           ),
-        })),
-      updateQuestion: (assessmentId, questionId, patch) =>
+        }));
+      },
+      updateQuestion: (assessmentId, questionId, patch) => {
+        (async () => {
+          try {
+            await fetch(`/api/questions/${encodeURIComponent(questionId)}`, {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(patch),
+            });
+          } catch (err) {
+            console.error("updateQuestion error", err);
+          }
+        })();
         set((s) => ({
           assessments: s.assessments.map((a) =>
             a.id === assessmentId
               ? { ...a, questions: a.questions.map((q) => (q.id === questionId ? { ...q, ...patch } : q)) }
               : a,
           ),
-        })),
-      deleteQuestion: (assessmentId, questionId) =>
+        }));
+      },
+      deleteQuestion: (assessmentId, questionId) => {
+        (async () => {
+          try {
+            await fetch(`/api/questions/${encodeURIComponent(questionId)}`, {
+              method: "DELETE",
+            });
+          } catch (err) {
+            console.error("deleteQuestion error", err);
+          }
+        })();
         set((s) => ({
           assessments: s.assessments.map((a) =>
             a.id === assessmentId
               ? syncQuestionCount({ ...a, questions: a.questions.filter((q) => q.id !== questionId) })
               : a,
           ),
-        })),
+        }));
+      },
 
       submitQuiz: (assessmentId, studentId, answers, proctorEvents) => {
         const a = get().assessments.find((x) => x.id === assessmentId);
@@ -327,7 +530,6 @@ export const useData = create<DataState>()(
             const correct = String(q.correctIndex) === response;
             return { questionId: q.id, response, awarded: correct ? q.points : 0 };
           }
-          // short answer: needs teacher grading
           return { questionId: q.id, response, awarded: null };
         });
         const needsGrading = responses.some((r) => r.awarded === null);
@@ -336,31 +538,53 @@ export const useData = create<DataState>()(
           id,
           assessmentId,
           studentId,
-          submittedAt: new Date().toISOString().slice(0, 10),
+          submittedAt: new Date().toISOString(),
           responses,
           status: needsGrading ? "submitted" : "graded",
           proctorEvents,
         };
+
+        (async () => {
+          try {
+            await fetch("/api/submissions", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(sub),
+            });
+          } catch (err) {
+            console.error("submitQuiz error", err);
+          }
+        })();
+
         set((s) => ({ submissions: [sub, ...s.submissions] }));
 
-        // notify teacher of the course
         const course = get().courses.find((c) => c.id === a.courseId);
         if (course?.teacherId) {
           get().notify(course.teacherId, "New quiz submission", `A student submitted "${a.title}".`);
         }
-        // notify the student of their auto-graded score
         if (!needsGrading) {
           const earned = responses.reduce((sum, r) => sum + (r.awarded ?? 0), 0);
           const max = a.questions.reduce((sum, q) => sum + q.points, 0);
           const pct = max ? Math.round((earned / max) * 100) : 0;
           get().notify(studentId, "Quiz auto-graded", `${a.title}: ${pct}% (${earned}/${max}).`);
-          // Final exam: auto-request a certificate for admin verification
           if (pct >= a.passingScore && a.isFinal) maybeRequestCert(get, studentId, a.courseId, pct, proctorEvents);
         }
         return id;
       },
 
-      gradeSubmission: (submissionId, awards, feedback) =>
+      gradeSubmission: (submissionId, awards, feedback) => {
+        (async () => {
+          try {
+            await fetch(`/api/submissions/${encodeURIComponent(submissionId)}/grade`, {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ awards, feedback }),
+            });
+          } catch (err) {
+            console.error("gradeSubmission error", err);
+          }
+        })();
+
         set((s) => {
           const updated = s.submissions.map((sub) =>
             sub.id === submissionId
@@ -389,14 +613,14 @@ export const useData = create<DataState>()(
               createdAt: new Date().toISOString(),
               read: false,
             };
-            // auto-request certificate after grading if passed
             if (a && a.isFinal && pct >= a.passingScore) {
               setTimeout(() => maybeRequestCert(get, sub.studentId, a.courseId, pct, sub.proctorEvents), 0);
             }
             return { submissions: updated, notifications: [note, ...s.notifications] };
           }
           return { submissions: updated };
-        }),
+        });
+      },
 
       requestCertificate: (studentId, courseId, score, note, proctorLog) => {
         const id = uid("cert");
@@ -407,9 +631,23 @@ export const useData = create<DataState>()(
           teacherNote: note,
           proctorLog,
         };
-        set((s) => ({ certificates: [cert, ...s.certificates] }));
-        // notify admins & the course's teacher with proctor summary
-        const susTypes = ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","multiple_faces"];
+        (async () => {
+          try {
+            const resp = await fetch("/api/certificates", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(cert),
+            });
+            if (!resp.ok) throw new Error("Failed to save certificate request");
+            const json = await resp.json();
+            const created = json.certificate ?? cert;
+            set((s) => ({ certificates: [created, ...s.certificates] }));
+          } catch (err) {
+            console.error("requestCertificate error", err);
+            set((s) => ({ certificates: [cert, ...s.certificates] }));
+          }
+        })();
+        const susTypes = ["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","multiple_faces","camera_motion"];
         const sus = (proctorLog ?? []).filter((e) => susTypes.includes(e.type)).length;
         const msg = sus > 0
           ? `New certificate request — ${sus} suspicious proctor event${sus === 1 ? "" : "s"} flagged.`
@@ -423,6 +661,13 @@ export const useData = create<DataState>()(
           const updated = s.certificates.map((c) =>
             c.id === id ? { ...c, status: "approved" as const, issuedAt: new Date().toISOString().slice(0, 10) } : c,
           );
+          (async () => {
+            try {
+              await fetch(`/api/certificates/${id}/approve`, { method: "PUT" });
+            } catch (err) {
+              console.error("approveCertificate error", err);
+            }
+          })();
           const cert = updated.find((c) => c.id === id);
           const notes = cert
             ? [
@@ -445,6 +690,17 @@ export const useData = create<DataState>()(
           const updated = s.certificates.map((c) =>
             c.id === id ? { ...c, status: "rejected" as const, rejectionReason: reason } : c,
           );
+          (async () => {
+            try {
+              await fetch(`/api/certificates/${id}/reject`, {
+                method: "PUT",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ reason }),
+              });
+            } catch (err) {
+              console.error("rejectCertificate error", err);
+            }
+          })();
           const cert = updated.find((c) => c.id === id);
           const notes = cert
             ? [
@@ -462,109 +718,121 @@ export const useData = create<DataState>()(
           return { certificates: updated, notifications: notes };
         }),
 
-      markItemComplete: (studentId, courseId, itemId) =>
+      markItemComplete: (studentId, courseId, itemId) => {
+        (async () => {
+          try {
+            await fetch("/api/progress", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ studentId, courseId, contentItemId: itemId }),
+            });
+          } catch (err) {
+            console.error("markItemComplete error", err);
+          }
+        })();
         set((s) => {
           const key = `${studentId}:${courseId}`;
           const existing = s.progress[key] ?? [];
           if (existing.includes(itemId)) return s;
           return { progress: { ...s.progress, [key]: [...existing, itemId] } };
-        }),
-      unmarkItemComplete: (studentId, courseId, itemId) =>
+        });
+      },
+      unmarkItemComplete: (studentId, courseId, itemId) => {
+        (async () => {
+          try {
+            await fetch(`/api/progress?studentId=${encodeURIComponent(studentId)}&courseId=${encodeURIComponent(courseId)}&contentItemId=${encodeURIComponent(itemId)}`, {
+              method: "DELETE",
+            });
+          } catch (err) {
+            console.error("unmarkItemComplete error", err);
+          }
+        })();
         set((s) => {
           const key = `${studentId}:${courseId}`;
           const existing = s.progress[key] ?? [];
           return { progress: { ...s.progress, [key]: existing.filter((x) => x !== itemId) } };
-        }),
+        });
+      },
 
-      notify: (userId, title, message, link) =>
+      notify: (userId, title, message, link) => {
+        const id = uid("n");
+        const notif = { id, userId, title, message, link, createdAt: new Date().toISOString(), read: false };
+        (async () => {
+          try {
+            await fetch("/api/notifications", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(notif),
+            });
+          } catch (err) {
+            console.error("notify error", err);
+          }
+        })();
         set((s) => ({
-          notifications: [
-            { id: uid("n"), userId, title, message, link, createdAt: new Date().toISOString(), read: false },
-            ...s.notifications,
-          ],
-        })),
-      markNotifRead: (id) =>
-        set((s) => ({ notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) })),
-      markAllNotifsRead: (userId) =>
+          notifications: [notif, ...s.notifications],
+        }));
+      },
+      markNotifRead: (id) => {
+        (async () => {
+          try {
+            await fetch(`/api/notifications/${encodeURIComponent(id)}/read`, { method: "PUT" });
+          } catch (err) {
+            console.error("markNotifRead error", err);
+          }
+        })();
+        set((s) => ({ notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) }));
+      },
+      markAllNotifsRead: (userId) => {
+        (async () => {
+          try {
+            await fetch("/api/notifications/read-all", {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ userId }),
+            });
+          } catch (err) {
+            console.error("markAllNotifsRead error", err);
+          }
+        })();
         set((s) => ({
           notifications: s.notifications.map((n) => (n.userId === userId ? { ...n, read: true } : n)),
-        })),
+        }));
+      },
 
       sendMessage: (fromId, toId, subject, body) => {
+        const id = uid("m");
         const msg: Message = {
-          id: uid("m"), fromId, toId, subject, body,
+          id, fromId, toId, subject, body,
           createdAt: new Date().toISOString(), read: false,
         };
+        (async () => {
+          try {
+            await fetch("/api/messages", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(msg),
+            });
+          } catch (err) {
+            console.error("sendMessage error", err);
+          }
+        })();
         set((s) => ({ messages: [msg, ...s.messages] }));
         get().notify(toId, `New message: ${subject}`, body.slice(0, 80));
       },
-      markMessageRead: (id) =>
-        set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, read: true } : m)) })),
+      markMessageRead: (id) => {
+        (async () => {
+          try {
+            await fetch(`/api/messages/${encodeURIComponent(id)}/read`, { method: "PUT" });
+          } catch (err) {
+            console.error("markMessageRead error", err);
+          }
+        })();
+        set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, read: true } : m)) }));
+      },
 
       resetData: () => set({ ...initial }),
-    }),
-    {
-      name: "itech-data-v2",
-      version: 4,
-      merge: (persisted: any, current) => {
-        const saved = persisted && typeof persisted === "object" ? persisted : {};
-        return {
-          ...current,
-          ...saved,
-          users: Array.isArray(saved.users) ? saved.users : current.users,
-          courses: ensureSeedCourses(saved.courses ?? current.courses),
-          assessments: Array.isArray(saved.assessments) ? saved.assessments : current.assessments,
-          submissions: Array.isArray(saved.submissions) ? saved.submissions : current.submissions,
-          certificates: Array.isArray(saved.certificates) ? saved.certificates : current.certificates,
-          notifications: Array.isArray(saved.notifications) ? saved.notifications : current.notifications,
-          messages: Array.isArray(saved.messages) ? saved.messages : current.messages,
-          progress: saved.progress && typeof saved.progress === "object" ? saved.progress : current.progress,
-        };
-      },
-      migrate: (persisted: any, version: number) => {
-        if (!persisted) return persisted;
-        persisted.users = Array.isArray(persisted.users) ? persisted.users : seedUsers;
-        persisted.courses = ensureSeedCourses(persisted.courses);
-        persisted.assessments = Array.isArray(persisted.assessments) ? persisted.assessments : [];
-        persisted.submissions = Array.isArray(persisted.submissions) ? persisted.submissions : [];
-        persisted.certificates = Array.isArray(persisted.certificates) ? persisted.certificates : [];
-        persisted.notifications = Array.isArray(persisted.notifications) ? persisted.notifications : [];
-        persisted.messages = Array.isArray(persisted.messages) ? persisted.messages : [];
-        persisted.progress = persisted.progress && typeof persisted.progress === "object" ? persisted.progress : {};
-        if (version < 3) {
-          persisted.courses = (persisted.courses ?? []).map((c: any) => ({
-            ...c,
-            accessMode: c.accessMode ?? "lifetime",
-          }));
-          persisted.assessments = (persisted.assessments ?? []).map((a: any) => ({
-            ...a,
-            isFinal: a.isFinal ?? false,
-          }));
-        }
-        if (version < 4) {
-          // Inject seed course if user has none, so opening a course works out of the box
-          persisted.courses = ensureSeedCourses(persisted.courses);
-        }
-        return persisted;
-      },
-      // Ensure the 3 hardcoded accounts always exist in users list
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
-        state.users = Array.isArray(state.users) ? state.users : [];
-        state.courses = ensureSeedCourses(state.courses);
-        state.assessments = Array.isArray(state.assessments) ? state.assessments : [];
-        state.submissions = Array.isArray(state.submissions) ? state.submissions : [];
-        state.certificates = Array.isArray(state.certificates) ? state.certificates : [];
-        state.notifications = Array.isArray(state.notifications) ? state.notifications : [];
-        state.messages = Array.isArray(state.messages) ? state.messages : [];
-        state.progress = state.progress && typeof state.progress === "object" ? state.progress : {};
-        const have = new Set(state.users.map((u) => u.id));
-        const missing = seedUsers.filter((u) => !have.has(u.id));
-        if (missing.length > 0) state.users = [...missing, ...state.users];
-      },
-    },
-  ),
-);
+    })
+  );
 
 export function maxScore(a: StoreAssessment): number {
   return a.questions.reduce((sum, q) => sum + q.points, 0);

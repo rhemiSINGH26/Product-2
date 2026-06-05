@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, BookOpen, BarChart3, Award, FileEdit, ClipboardCheck,
@@ -8,6 +8,7 @@ import {
 import { Logo } from "./Logo";
 import { useAuth } from "@/lib/store";
 import { useData } from "@/lib/data-store";
+import "@/lib/data-load-init";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -50,10 +51,16 @@ const navByRole = {
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [search, setSearch] = useState("");
-  const { user, logout } = useAuth();
+  const { user, logout, initializeSession } = useAuth();
   const { notifications, messages, markAllNotifsRead, markNotifRead } = useData();
   const nav = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  useEffect(() => {
+    if (!user) {
+      initializeSession();
+    }
+  }, [user, initializeSession]);
 
   const myNotifs = useMemo(
     () => notifications.filter((n) => user && n.userId === user.id),
@@ -69,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!user) return <>{children}</>;
   const items = navByRole[user.role];
 
-  const handleLogout = () => { logout(); nav({ to: "/login" }); };
+  const handleLogout = async () => { await logout(); nav({ to: "/login" }); };
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +87,18 @@ export function AppShell({ children }: { children: ReactNode }) {
     else if (user.role === "teacher") nav({ to: "/teacher/students", search: { q } as any });
     else nav({ to: "/student/courses", search: { q } as any });
   };
+
+  const isAssessmentPage = pathname.startsWith("/student/assessments/");
+
+  if (isAssessmentPage) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <main className="flex-1 p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -132,7 +151,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </motion.aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-40 h-16 border-b border-border glass-strong flex items-center gap-4 px-6">
+        <header className="sticky top-0 z-40 h-16 border-b border-border glass-strong flex items-center justify-between gap-4 px-6">
           <form onSubmit={onSearch} className="hidden md:flex items-center gap-2 flex-1 max-w-md">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -144,9 +163,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </div>
           </form>
-          <div className="flex-1 md:hidden" />
-
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 ml-auto">
             {(user.role === "student" || user.role === "teacher") && (
               <Button variant="ghost" size="icon" className="relative" onClick={() => nav({ to: user.role === "teacher" ? "/teacher/messages" : "/student/messages" })}>
                 <MessageSquare className="h-4 w-4" />
@@ -221,15 +238,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="font-medium">{user.name}</div>
-                  <div className="text-xs text-muted-foreground font-normal">{user.email}</div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem disabled><Settings className="mr-2 h-4 w-4" />Settings</DropdownMenuItem>
-                <DropdownMenuItem disabled><GraduationCap className="mr-2 h-4 w-4" />Help & Docs</DropdownMenuItem>
-                <DropdownMenuSeparator />
+              <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />Log out
                 </DropdownMenuItem>

@@ -86,7 +86,7 @@ function TeacherCertificates() {
   const studentName = (id: string) => users.find((u) => u.id === id)?.name ?? id;
   const studentEmail = (id: string) => users.find((u) => u.id === id)?.email ?? "";
 
-  const susTypes = new Set(["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","multiple_faces"]);
+  const susTypes = new Set(["fullscreen_exit","tab_blur","visibility_hidden","copy","paste","context_menu","key_meta","camera_denied","camera_ended","camera_motion","multiple_faces"]);
   const susCount = (c: Certificate) => (c.proctorLog ?? []).filter((e) => susTypes.has(e.type)).length;
 
   const [viewingLog, setViewingLog] = useState<Certificate | null>(null);

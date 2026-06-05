@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Users, GraduationCap, BookOpen, Award, UserPlus, BookPlus, AlertCircle, Inbox } from "lucide-react";
+import { Users, GraduationCap, BookOpen, Award, UserPlus, BookPlus, AlertCircle, Inbox, Clock } from "lucide-react";
 import { PageHeader, StatCard, GlassCard } from "@/components/ui-kit";
 import { Button } from "@/components/ui/button";
-import { useData } from "@/lib/data-store";
+import { useData, isUserInactive } from "@/lib/data-store";
 import { useAuth } from "@/lib/store";
 import { motion } from "framer-motion";
 
@@ -15,6 +15,7 @@ function AdminDashboard() {
   const teachers = users.filter((u) => u.role === "teacher").length;
   const activeCourses = courses.filter((c) => c.status === "active").length;
   const pending = certificates.filter((c) => c.status === "pending").length;
+  const inactiveUsers = users.filter(isUserInactive).length;
 
   const recent = notifications.filter((n) => user && n.userId === user.id).slice(0, 6);
 
@@ -35,12 +36,33 @@ function AdminDashboard() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Total Students" value={students} icon={Users} />
         <StatCard label="Teachers" value={teachers} icon={GraduationCap} delay={0.05} />
         <StatCard label="Active Courses" value={activeCourses} icon={BookOpen} delay={0.1} />
         <StatCard label="Pending Approvals" value={pending} icon={Award} accent delay={0.15} />
+        <StatCard label="Idle Users" value={inactiveUsers} icon={Clock} accent delay={0.2} />
       </div>
+
+      {inactiveUsers > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="flex items-center justify-between rounded-2xl border border-warning/40 bg-warning/10 px-5 py-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 grid place-items-center rounded-xl bg-warning/20 text-warning">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-warning">{inactiveUsers} idle user{inactiveUsers === 1 ? "" : "s"}</div>
+              <div className="text-xs text-muted-foreground">Haven't logged in for over 7 days. Consider sending a nudge.</div>
+            </div>
+          </div>
+          <Button asChild size="sm" variant="outline" className="border-warning/40 text-warning hover:bg-warning/10">
+            <Link to="/admin/users"><Clock className="mr-1.5 h-4 w-4" />View idle users</Link>
+          </Button>
+        </motion.div>
+      )}
 
       {pending > 0 && (
         <motion.div
